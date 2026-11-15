@@ -6,6 +6,7 @@ export default defineConfig({
   root: resolve(import.meta.dirname, 'src/client'),
   publicDir: resolve(import.meta.dirname, 'src/client/public'),
   plugins: [react()],
+  define: { __BUILD_ID__: JSON.stringify(Date.now().toString(36)) },
   build: { outDir: resolve(import.meta.dirname, 'dist/client'), emptyOutDir: true, chunkSizeWarningLimit: 900 },
   server: {
     port: 5173,

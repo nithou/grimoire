@@ -69,6 +69,7 @@ const DICE = (function() {
 
     // Grimoire : expose la configuration (couleurs, échelle) pour personnalisation
     that.vars = vars;
+    that.paintFaceSupported = true; // Grimoire : crochet DICE.paintFace disponible
 
     // DICE BOX OBJECT
 

@@ -11,6 +11,11 @@ declare global {
 import { DICE_FONT, paintFace } from './diceFaces';
 
 const SUPPORTED = new Set([4, 6, 8, 10, 12, 20]);
+// Version du build : les scripts de /dice ont une URL fixe, on la rend unique à chaque build
+// pour qu'aucun cache (navigateur, reverse proxy, CDN) ne serve une ancienne librairie.
+declare const __BUILD_ID__: string;
+const V = typeof __BUILD_ID__ !== 'undefined' ? __BUILD_ID__ : 'dev';
+const asset = (p: string) => `/dice/${p}?v=${V}`;
 const PREF_KEY = 'grimoire.dice3d';
 const SOUND_KEY = 'grimoire.diceSound';
 
@@ -61,10 +66,10 @@ let loading: Promise<void> | null = null;
 function ensureLib() {
   if (!loading) {
     loading = (async () => {
-      await loadScript('/dice/three.min.js');
-      await loadScript('/dice/cannon.min.js');
-      await loadScript('/dice/teal.js');
-      await loadScript('/dice/dice.js');
+      await loadScript(asset('three.min.js'));
+      await loadScript(asset('cannon.min.js'));
+      await loadScript(asset('teal.js'));
+      await loadScript(asset('dice.js'));
       // Les textures sont dessinées une seule fois : la police doit être prête avant.
       await document.fonts?.load(DICE_FONT).catch(() => undefined);
     })().catch((e) => {
@@ -93,6 +98,11 @@ function getBox() {
   if (!box || size !== boxSize) {
     // « Résine & Or » : faces peintes par diceFaces.ts, matière translucide, sans fond studio.
     DICE.paintFace = paintFace;
+    // Secours si une ancienne dice.js (sans crochet paintFace) est servie : dés clairs à chiffres dorés.
+    if (!DICE.paintFaceSupported) {
+      DICE.vars.dice_color = '#eef0f4';
+      DICE.vars.label_color = '#9a5e0e';
+    }
     DICE.vars.desk_color = '#0b0a13';
     DICE.vars.desk_opacity = 0.2;
     DICE.vars.shadow_darkness = 0.6;
@@ -100,7 +110,7 @@ function getBox() {
     DICE.vars.ambient_light_color = 0xc8c8cc;
     DICE.vars.spot_light_color = 0xd9d9dc;
     Object.assign(DICE.vars.material_options, { color: 0xffffff, specular: 0x3a3a3a, shininess: 40, transparent: true, opacity: 0.97 });
-    DICE.soundUrl = '/dice/nc93322.mp3';
+    DICE.soundUrl = asset('nc93322.mp3');
     overlay.innerHTML = '';
     box = new DICE.dice_box(overlay);
     boxSize = size;
