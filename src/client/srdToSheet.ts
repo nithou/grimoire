@@ -57,6 +57,7 @@ export function srdToItem(e: SrdFull): ItemT {
     equipped: false,
     attuned: false,
     value: e.extra?.cost ?? '',
+    containerId: '',
     notes: e.type === 'magic-item' ? e.meta : '',
   };
 }

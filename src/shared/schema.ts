@@ -101,6 +101,8 @@ export const Item = z
     value: str,
     /** Description de l'objet (anciennement « notes »). */
     notes: str,
+    /** Contenant : '' = sac principal, sinon id d'un élément de `containers`. */
+    containerId: str,
   })
   .prefault({});
 
@@ -163,6 +165,8 @@ export const CharacterSchema = z.object({
     .object({ armor: strList, weapons: strList, tools: strList, languages: strList })
     .prefault({}),
   inventory: z.array(Item).catch([]).default([]),
+  /** Contenants supplémentaires (sacs, coffres…) ; le sac principal est implicite. */
+  containers: z.array(z.object({ id, name: z.string().default('Nouveau sac') }).prefault({})).catch([]).default([]),
   coins: z.object({ pc: int(0), pa: int(0), pe: int(0), po: int(0), pp: int(0) }).prefault({}),
   personality: z
     .object({ traits: str, ideals: str, bonds: str, flaws: str, backstory: str })

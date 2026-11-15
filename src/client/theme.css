@@ -425,3 +425,5 @@ input.xp-input { width: 6.5rem; min-height: 1.9rem; padding: 0.15rem 0.45rem; fo
   .sheet-layout[style] { grid-template-columns: minmax(0, 1fr) !important; }
   .coins { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 }
+input.box-name { font-family: var(--font); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--label); max-width: 22rem; min-height: 2rem; }
+select.move-select { width: auto; min-height: 1.9rem; padding: 0.1rem 0.4rem; font-size: 0.8rem; color: var(--text-muted); max-width: 9rem; }

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { BookOpen, Backpack, Image, ScrollText, Shield, Sparkles, User, Wand2, RefreshCw } from 'lucide-react';
+import { BookOpen, Backpack, Image, ScrollText, Shield, Sparkles, User, Wand2, RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { useCharacter } from '../useCharacter';
 import type { Character, AttackT, ItemT, SpellT, ResourceT, FeatureT } from '../../shared/schema';
+import { uid } from '../../shared/schema';
 import {
   ABILITIES, ABILITY_LABELS, ALIGNMENTS, BACKGROUNDS, CLASSES, CONDITIONS, DAMAGE_TYPES, SKILLS, SPECIES, WEAPON_MASTERIES, findClass, COINS,
 } from '../../shared/srd-fr';
@@ -385,8 +386,66 @@ function SpellsTab({ c, up }: { c: Character; up: Up }) {
 }
 
 // ---------------------------------------------------------------------------
+const MAIN_BAG = 'Sac principal';
+
+/** Un contenant (sac principal ou sac nommé) et ses objets, en édition complète. */
+function EditContainer({ c, up, box, onSrd }: { c: Character; up: Up; box: { id: string; name: string }; onSrd: () => void }) {
+  const items = c.inventory.filter((i) => i.containerId === box.id);
+  const others = [{ id: '', name: MAIN_BAG }, ...c.containers];
+  return (
+    <div className="card stack">
+      <div className="card-title">
+        {box.id ? (
+          <input className="box-name" value={box.name} aria-label="Nom du contenant" onChange={(e) => up((d) => { d.containers.find((x) => x.id === box.id)!.name = e.target.value; })} />
+        ) : (
+          <h2>{MAIN_BAG}</h2>
+        )}
+        <span className="row">
+          <button className="btn sm" onClick={onSrd}><BookOpen size={16} /> Objet du SRD</button>
+          {box.id && (
+            <button className="btn sm icon danger" title="Supprimer le contenant" aria-label="Supprimer le contenant" onClick={() => {
+              if (!confirm(`Supprimer « ${box.name} » ? Ses objets seront déplacés dans le sac principal.`)) return;
+              up((d) => {
+                d.containers = d.containers.filter((x) => x.id !== box.id);
+                for (const i of d.inventory) if (i.containerId === box.id) i.containerId = '';
+              });
+            }}><Trash2 size={15} /></button>
+          )}
+        </span>
+      </div>
+      <ListEditor<ItemT>
+        items={items}
+        onChange={(v) => up((d) => { d.inventory = [...d.inventory.filter((i) => i.containerId !== box.id), ...v.map((i) => ({ ...i, containerId: box.id }))]; })}
+        make={() => ({ name: '', qty: 1, weight: 0, equipped: false, attuned: false, value: '', notes: '', containerId: box.id })}
+        render={(it, set) => (
+          <div className="stack">
+            <div className="grid g4">
+              <Field label="Objet" className=""><Text value={it.name} onChange={(v) => set({ name: v })} /></Field>
+              <Field label="Quantité"><Num value={it.qty} min={0} onChange={(v) => set({ qty: v ?? 0 })} /></Field>
+              <Field label="Poids unitaire (kg)"><Num value={it.weight} min={0} step={0.1} onChange={(v) => set({ weight: v ?? 0 })} /></Field>
+              <Field label="Valeur"><Text value={it.value} placeholder="ex. 25 po" onChange={(v) => set({ value: v })} /></Field>
+            </div>
+            <Field label="Description"><TextArea rows={2} value={it.notes} onChange={(v) => set({ notes: v })} /></Field>
+            <div className="row small">
+              <label className="row"><input type="checkbox" checked={it.equipped} onChange={(e) => set({ equipped: e.target.checked })} /> Équipé</label>
+              <label className="row"><input type="checkbox" checked={it.attuned} onChange={(e) => set({ attuned: e.target.checked })} /> Harmonisé</label>
+              {others.length > 1 && (
+                <label className="row">Contenant
+                  <select style={{ width: 'auto' }} value={it.containerId} onChange={(e) => { const to = e.target.value; up((d) => { d.inventory.find((x) => x.id === it.id)!.containerId = to; }); }}>
+                    {others.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+          </div>
+        )}
+      />
+    </div>
+  );
+}
+
 function InventoryTab({ c, up }: { c: Character; up: Up }) {
-  const [picker, setPicker] = useState(false);
+  const [picker, setPicker] = useState<string | null>(null);
   return (
     <div className="sheet-layout">
       <div className="stack" style={{ gap: '1rem' }}>
@@ -406,36 +465,18 @@ function InventoryTab({ c, up }: { c: Character; up: Up }) {
           <Field label="Langues"><TagInput value={c.proficiencies.languages} onChange={(v) => up((d) => { d.proficiencies.languages = v; })} placeholder="Commun, Elfique…" suggestions={['Commun', 'Langue des signes commune', 'Draconique', 'Elfique', 'Géant', 'Gnome', 'Gobelin', 'Halfelin', 'Nain', 'Orc', 'Abyssal', 'Céleste', 'Commun des profondeurs', 'Druidique', 'Infernal', 'Primordial', 'Sylvestre', "Argot des voleurs"]} /></Field>
         </div>
       </div>
-      <div className="card stack">
-        <div className="card-title">
-          <h2>Équipement</h2>
-          <button className="btn sm" onClick={() => setPicker(true)}><BookOpen size={16} /> Objet du SRD</button>
-        </div>
-        <ListEditor<ItemT>
-          items={c.inventory}
-          onChange={(v) => up((d) => { d.inventory = v; })}
-          make={() => ({ name: '', qty: 1, weight: 0, equipped: false, attuned: false, value: '', notes: '' })}
-          render={(it, set) => (
-            <div className="stack">
-              <div className="grid g4">
-                <Field label="Objet" className=""><Text value={it.name} onChange={(v) => set({ name: v })} /></Field>
-                <Field label="Quantité"><Num value={it.qty} min={0} onChange={(v) => set({ qty: v ?? 0 })} /></Field>
-                <Field label="Poids unitaire (kg)"><Num value={it.weight} min={0} step={0.1} onChange={(v) => set({ weight: v ?? 0 })} /></Field>
-                <Field label="Valeur"><Text value={it.value} placeholder="ex. 25 po" onChange={(v) => set({ value: v })} /></Field>
-              </div>
-              <Field label="Description"><TextArea rows={2} value={it.notes} onChange={(v) => set({ notes: v })} /></Field>
-              <div className="row small">
-                <label className="row"><input type="checkbox" checked={it.equipped} onChange={(e) => set({ equipped: e.target.checked })} /> Équipé</label>
-                <label className="row"><input type="checkbox" checked={it.attuned} onChange={(e) => set({ attuned: e.target.checked })} /> Harmonisé</label>
-              </div>
-            </div>
-          )}
-        />
+      <div className="stack" style={{ gap: '1rem' }}>
+        {[{ id: '', name: MAIN_BAG }, ...c.containers].map((box) => (
+          <EditContainer key={box.id || 'main'} c={c} up={up} box={box} onSrd={() => setPicker(box.id)} />
+        ))}
+        <button className="btn" style={{ alignSelf: 'flex-start' }} onClick={() => up((d) => { d.containers.push({ id: uid(), name: 'Nouveau sac' }); })}>
+          <Plus size={16} /> Nouveau contenant
+        </button>
         <div className="small muted">
-          Charge : {R.carriedWeight(c)} kg / {R.carryingCapacity(c)} kg · Objets harmonisés : {c.inventory.filter((i) => i.attuned).length}/3
+          Charge totale : {R.carriedWeight(c)} kg / {R.carryingCapacity(c)} kg · Objets harmonisés : {c.inventory.filter((i) => i.attuned).length}/3
         </div>
       </div>
-      {picker && <SrdPicker title="Ajouter un objet du SRD" types={['gear', 'tool', 'weapon', 'armor', 'magic-item']} onClose={() => setPicker(false)} onPick={(e) => up((d) => { d.inventory.push(srdToItem(e)); })} />}
+      {picker != null && <SrdPicker title="Ajouter un objet du SRD" types={['gear', 'tool', 'weapon', 'armor', 'magic-item']} onClose={() => setPicker(null)} onPick={(e) => up((d) => { d.inventory.push({ ...srdToItem(e), containerId: picker }); })} />}
     </div>
   );
 }

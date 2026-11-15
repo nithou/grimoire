@@ -226,3 +226,14 @@ describe('Inspiration', () => {
     expect(blankCharacter().combat.heroicInspiration).toBe(0);
   });
 });
+
+describe('Contenants', () => {
+  it('les anciennes fiches sont rangées dans le sac principal', () => {
+    const c = CharacterSchema.parse({ inventory: [{ name: 'Corde' }] });
+    expect(c.containers).toEqual([]);
+    expect(c.inventory[0].containerId).toBe('');
+    const d = CharacterSchema.parse({ containers: [{ id: 'b1', name: 'Sac sans fond' }], inventory: [{ name: 'Gemme', containerId: 'b1' }] });
+    expect(d.inventory[0].containerId).toBe('b1');
+    expect(d.containers[0].name).toBe('Sac sans fond');
+  });
+});

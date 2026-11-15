@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Bed, BookOpen, Coffee, Dices, Heart, HeartPulse, Minus, Plus, Shield, Skull, Sparkles, Swords, Trash2, Wand2, Backpack, NotebookPen, Star, Zap, LayoutGrid, Drama, Images } from 'lucide-react';
+import { Bed, BookOpen, Coffee, Dices, Heart, HeartPulse, Minus, Plus, Shield, Skull, Sparkles, Swords, Trash2, Wand2, Backpack, NotebookPen, Star, Zap, LayoutGrid, Drama, Images, Pencil } from 'lucide-react';
 import { useCharacter } from '../useCharacter';
 import { DiceProvider, DiceTray, ModeSwitch, useDice } from '../dice';
 import type { Character } from '../../shared/schema';
@@ -34,7 +34,7 @@ function PlayInner({ id, c, up, status, reload, force }: { id: string; c: Charac
   const dice = useDice();
   const pen = R.exhaustionPenalty(c);
   const [srdOpen, setSrdOpen] = useState<string | null>(null);
-  const [itemPicker, setItemPicker] = useState(false);
+  const [itemPicker, setItemPicker] = useState<string | null>(null);
   const [tab, setTabState] = useState<PlayTab>(() => {
     try {
       return (localStorage.getItem(TAB_KEY) as PlayTab) || 'general';
@@ -159,7 +159,7 @@ function PlayInner({ id, c, up, status, reload, force }: { id: string; c: Charac
 
       {tab === 'inventaire' && (
         <div className="fade-in">
-          <InventoryCard c={c} up={up} onSrd={() => setItemPicker(true)} />
+          <InventoryCard c={c} up={up} onSrd={(box) => setItemPicker(box)} />
         </div>
       )}
 
@@ -177,7 +177,7 @@ function PlayInner({ id, c, up, status, reload, force }: { id: string; c: Charac
       )}
 
       {srdOpen && <Modal title="Règles" onClose={() => setSrdOpen(null)}><SrdDetail id={srdOpen} /></Modal>}
-      {itemPicker && <SrdPicker title="Ajouter un objet" types={['gear', 'tool', 'weapon', 'armor', 'magic-item']} onClose={() => setItemPicker(false)} onPick={(e) => up((d) => { d.inventory.push(srdToItem(e)); })} />}
+      {itemPicker != null && <SrdPicker title="Ajouter un objet" types={['gear', 'tool', 'weapon', 'armor', 'magic-item']} onClose={() => setItemPicker(null)} onPick={(e) => up((d) => { d.inventory.push({ ...srdToItem(e), containerId: itemPicker }); })} />}
     </div>
   );
 }
@@ -460,9 +460,10 @@ function ConditionsCard({ c, up }: { c: Character; up: Up }) {
   );
 }
 
-function InventoryCard({ c, up, onSrd }: { c: Character; up: Up; onSrd: () => void }) {
-  const [name, setName] = useState('');
-  const setItem = (id: string, fn: (i: Character['inventory'][number]) => void) => up((d) => { const i = d.inventory.find((x) => x.id === id); if (i) fn(i); });
+const MAIN_BAG = 'Sac principal';
+
+function InventoryCard({ c, up, onSrd }: { c: Character; up: Up; onSrd: (box: string) => void }) {
+  const [newBox, setNewBox] = useState('');
   return (
     <div className="sheet-layout" style={{ gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 9fr)' }}>
       <div className="stack" style={{ gap: '1rem' }}>
@@ -483,45 +484,95 @@ function InventoryCard({ c, up, onSrd }: { c: Character; up: Up; onSrd: () => vo
           <div className="muted">Objets harmonisés : {c.inventory.filter((i) => i.attuned).length}/3</div>
         </div>
       </div>
-      <div className="card stack">
-        <div className="card-title">
-          <h2><Backpack size={18} /> Inventaire</h2>
-          <button className="btn sm" onClick={onSrd}><BookOpen size={15} /> Ajouter depuis le SRD</button>
-        </div>
-        <ul className="list inv">
-          {c.inventory.length === 0 && <li className="muted">Inventaire vide.</li>}
-          {c.inventory.map((i) => (
-            <li key={i.id}>
-              <div className="row" style={{ flexWrap: 'nowrap', gap: 6 }}>
-                <input type="checkbox" checked={i.equipped} onChange={(e) => setItem(i.id, (x) => { x.equipped = e.target.checked; })} title="Équipé" aria-label={`Équiper ${i.name}`} />
-                <span className="grow inv-name">
-                  {i.name}
-                  {i.equipped && <span className="chip">équipé</span>}
-                  {i.attuned && <span className="chip">harmonisé</span>}
-                </span>
-                {i.value && <span className="chip warn" title="Valeur">{i.value}</span>}
-                <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty = Math.max(0, x.qty - 1); })} aria-label="Retirer un"><Minus size={14} /></button>
-                <span className="big-num" style={{ minWidth: 28, textAlign: 'center', fontSize: '1.1rem' }}>{i.qty}</span>
-                <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty += 1; })} aria-label="Ajouter un"><Plus size={14} /></button>
-                <button className="btn ghost sm icon" style={{ color: 'var(--danger)' }} onClick={() => { if (confirm(`Retirer « ${i.name} » de l'inventaire ?`)) up((d) => { d.inventory = d.inventory.filter((x) => x.id !== i.id); }); }} aria-label="Supprimer"><Trash2 size={14} /></button>
-              </div>
-              {i.notes && <div className="inv-desc">{i.notes}</div>}
-            </li>
-          ))}
-        </ul>
-        <form className="row" style={{ flexWrap: 'nowrap' }} onSubmit={(e) => {
+      <div className="stack" style={{ gap: '1rem' }}>
+        {[{ id: '', name: MAIN_BAG }, ...c.containers].map((box) => (
+          <ContainerCard key={box.id || 'main'} c={c} up={up} box={box} onSrd={() => onSrd(box.id)} />
+        ))}
+        <form className="card row" style={{ flexWrap: 'nowrap', borderStyle: 'dashed' }} onSubmit={(e) => {
           e.preventDefault();
-          const t = name.trim();
-          if (!t) return;
-          const m = t.match(/^(\d+)\s+(.*)$/);
-          up((d) => { d.inventory.push({ id: uid(), name: m ? m[2] : t, qty: m ? parseInt(m[1], 10) : 1, weight: 0, equipped: false, attuned: false, value: '', notes: '' }); });
-          setName('');
+          const n = newBox.trim();
+          if (!n) return;
+          up((d) => { d.containers.push({ id: uid(), name: n }); });
+          setNewBox('');
         }}>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ajouter un objet (ex. 3 torches)" />
-          <button className="btn sm" type="submit" aria-label="Ajouter"><Plus size={16} /></button>
+          <input value={newBox} onChange={(e) => setNewBox(e.target.value)} placeholder="Nouveau contenant (ex. Sac sans fond, Coffre de la cabane…)" aria-label="Nom du nouveau contenant" />
+          <button className="btn sm" type="submit" disabled={!newBox.trim()}><Plus size={16} /> Créer</button>
         </form>
         <div className="small muted">Valeur, poids et description se modifient dans Édition › Inventaire.</div>
       </div>
+    </div>
+  );
+}
+
+/** Un contenant (sac principal ou sac nommé) en vue Jeu. */
+function ContainerCard({ c, up, box, onSrd }: { c: Character; up: Up; box: { id: string; name: string }; onSrd: () => void }) {
+  const [name, setName] = useState('');
+  const [renaming, setRenaming] = useState(false);
+  const items = c.inventory.filter((i) => i.containerId === box.id);
+  const boxes = [{ id: '', name: MAIN_BAG }, ...c.containers];
+  const weight = Math.round(items.reduce((s, i) => s + (i.weight || 0) * (i.qty || 0), 0) * 100) / 100;
+  const setItem = (id: string, fn: (i: Character['inventory'][number]) => void) => up((d) => { const i = d.inventory.find((x) => x.id === id); if (i) fn(i); });
+  return (
+    <div className="card stack">
+      <div className="card-title">
+        {box.id && renaming ? (
+          <input className="box-name" autoFocus value={box.name} aria-label="Nom du contenant" onBlur={() => setRenaming(false)} onKeyDown={(e) => e.key === 'Enter' && setRenaming(false)}
+            onChange={(e) => up((d) => { d.containers.find((x) => x.id === box.id)!.name = e.target.value; })} />
+        ) : (
+          <h2 onDoubleClick={() => box.id && setRenaming(true)} title={box.id ? 'Double-clic pour renommer' : undefined}><Backpack size={18} /> {box.name}</h2>
+        )}
+        <span className="row">
+          <span className="small muted">{items.length} objet{items.length > 1 ? 's' : ''}{weight ? ` · ${weight} kg` : ''}</span>
+          <button className="btn sm" onClick={onSrd}><BookOpen size={15} /> SRD</button>
+          {box.id && <button className="btn sm icon" onClick={() => setRenaming(true)} title="Renommer" aria-label="Renommer le contenant"><Pencil size={14} /></button>}
+          {box.id && (
+            <button className="btn sm icon danger" title="Supprimer le contenant" aria-label="Supprimer le contenant" onClick={() => {
+              if (!confirm(`Supprimer « ${box.name} » ? Ses objets seront déplacés dans le sac principal.`)) return;
+              up((d) => {
+                d.containers = d.containers.filter((x) => x.id !== box.id);
+                for (const i of d.inventory) if (i.containerId === box.id) i.containerId = '';
+              });
+            }}><Trash2 size={14} /></button>
+          )}
+        </span>
+      </div>
+      <ul className="list inv">
+        {items.length === 0 && <li className="muted">Vide.</li>}
+        {items.map((i) => (
+          <li key={i.id}>
+            <div className="row" style={{ flexWrap: 'nowrap', gap: 6 }}>
+              <input type="checkbox" checked={i.equipped} onChange={(e) => setItem(i.id, (x) => { x.equipped = e.target.checked; })} title="Équipé" aria-label={`Équiper ${i.name}`} />
+              <span className="grow inv-name">
+                {i.name}
+                {i.equipped && <span className="chip">équipé</span>}
+                {i.attuned && <span className="chip">harmonisé</span>}
+              </span>
+              {i.value && <span className="chip warn" title="Valeur">{i.value}</span>}
+              {boxes.length > 1 && (
+                <select className="move-select" value={i.containerId} title="Déplacer vers…" aria-label={`Déplacer ${i.name}`} onChange={(e) => { const to = e.target.value; setItem(i.id, (x) => { x.containerId = to; }); }}>
+                  {boxes.map((b) => <option key={b.id} value={b.id}>{b.id === i.containerId ? '↪ Déplacer' : b.name}</option>)}
+                </select>
+              )}
+              <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty = Math.max(0, x.qty - 1); })} aria-label="Retirer un"><Minus size={14} /></button>
+              <span className="big-num" style={{ minWidth: 28, textAlign: 'center', fontSize: '1.1rem' }}>{i.qty}</span>
+              <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty += 1; })} aria-label="Ajouter un"><Plus size={14} /></button>
+              <button className="btn ghost sm icon" style={{ color: 'var(--danger)' }} onClick={() => { if (confirm(`Retirer « ${i.name} » de l'inventaire ?`)) up((d) => { d.inventory = d.inventory.filter((x) => x.id !== i.id); }); }} aria-label="Supprimer"><Trash2 size={14} /></button>
+            </div>
+            {i.notes && <div className="inv-desc">{i.notes}</div>}
+          </li>
+        ))}
+      </ul>
+      <form className="row" style={{ flexWrap: 'nowrap' }} onSubmit={(e) => {
+        e.preventDefault();
+        const t = name.trim();
+        if (!t) return;
+        const m = t.match(/^(\d+)\s+(.*)$/);
+        up((d) => { d.inventory.push({ id: uid(), name: m ? m[2] : t, qty: m ? parseInt(m[1], 10) : 1, weight: 0, equipped: false, attuned: false, value: '', notes: '', containerId: box.id }); });
+        setName('');
+      }}>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`Ajouter dans « ${box.name} » (ex. 3 torches)`} />
+        <button className="btn sm" type="submit" aria-label="Ajouter"><Plus size={16} /></button>
+      </form>
     </div>
   );
 }
