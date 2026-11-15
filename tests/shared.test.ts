@@ -97,6 +97,7 @@ describe('import JSON', () => {
     expect(c.resources[0]).toMatchObject({ name: 'Rage', max: 2 });
     expect(c.toVerify.length).toBe(8);
     expect(R.initiative(c)).toBe(1);
+    expect(c.combat.heroicInspiration).toBe(4);
     expect(warnings.some((w) => w.includes('force'))).toBe(true);
   });
   it('aller-retour au format natif', () => {
@@ -185,5 +186,14 @@ describe('index SRD français', () => {
     expect(fr.find((e) => e.name === 'Boule de feu')).toMatchObject({ level: 3, classes: ['Ensorceleur', 'Magicien'] });
     expect(fr.find((e) => e.name === 'Cimeterre')?.extra?.mastery).toBe('Coup double');
     expect(fr.find((e) => e.name === 'Aveuglé')?.type).toBe('rule');
+  });
+});
+
+describe('Inspiration', () => {
+  it('convertit les anciens booléens en compteur', () => {
+    expect(CharacterSchema.parse({ combat: { heroicInspiration: true } }).combat.heroicInspiration).toBe(1);
+    expect(CharacterSchema.parse({ combat: { heroicInspiration: false } }).combat.heroicInspiration).toBe(0);
+    expect(CharacterSchema.parse({ combat: { heroicInspiration: 3 } }).combat.heroicInspiration).toBe(3);
+    expect(blankCharacter().combat.heroicInspiration).toBe(0);
   });
 });

@@ -139,7 +139,8 @@ export const CharacterSchema = z.object({
       deathSaves: z.object({ success: int(0), failure: int(0) }).prefault({}),
       conditions: strList,
       exhaustion: int(0),
-      heroicInspiration: bool,
+      // Compteur de points d'Inspiration (règle maison : cumulable). Les anciens booléens sont convertis.
+      heroicInspiration: z.preprocess((v) => (typeof v === 'boolean' ? (v ? 1 : 0) : v), int(0)),
     })
     .prefault({}),
   attacks: z.array(Attack).catch([]).default([]),

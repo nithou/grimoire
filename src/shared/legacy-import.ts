@@ -129,7 +129,7 @@ function fromLegacy(o: Any): ImportResult {
       hpCurrent: combat.points_de_vie_actuels != null ? toInt(combat.points_de_vie_actuels) : hpMax,
       hpTemp: 0,
       hitDice: combat.des_de_vie ? [{ die: combat.des_de_vie.type ?? 'd8', total: toInt(combat.des_de_vie.nombre, level), used: 0 }] : [],
-      heroicInspiration: !!o.inspiration && o.inspiration !== 0,
+      heroicInspiration: typeof o.inspiration === 'boolean' ? (o.inspiration ? 1 : 0) : Math.max(0, toInt(o.inspiration, 0)),
     },
     attacks,
     features,

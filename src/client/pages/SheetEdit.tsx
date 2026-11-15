@@ -248,7 +248,7 @@ function CombatTab({ c, up }: { c: Character; up: Up }) {
           <Field label={`Épuisement (niveau ${c.combat.exhaustion} : ${R.exhaustionPenalty(c)} aux tests d20)`}>
             <Num value={c.combat.exhaustion} min={0} max={6} onChange={(v) => up((d) => { d.combat.exhaustion = Math.max(0, Math.min(6, v ?? 0)); })} />
           </Field>
-          <label className="row"><input type="checkbox" checked={c.combat.heroicInspiration} onChange={(e) => up((d) => { d.combat.heroicInspiration = e.target.checked; })} /> Inspiration héroïque</label>
+          <Field label="Points d'Inspiration"><Num value={c.combat.heroicInspiration} min={0} onChange={(v) => up((d) => { d.combat.heroicInspiration = Math.max(0, v ?? 0); })} /></Field>
         </div>
       </div>
       <div className="stack" style={{ gap: '1rem' }}>

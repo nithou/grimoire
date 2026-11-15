@@ -100,9 +100,14 @@ function PlayInner({ id, c, up, status, reload, force }: { id: string; c: Charac
             <button className="stat" onClick={() => check('Initiative', R.initiative(c))}><div className="v">{fm(R.initiative(c))}</div><div className="k">Initiative</div></button>
             <div className="stat"><div className="v">{R.speed(c)} m</div><div className="k">Vitesse</div></div>
             <div className="stat"><div className="v">{fm(R.proficiencyBonus(c))}</div><div className="k">Maîtrise</div></div>
-            <button className={`stat ${c.combat.heroicInspiration ? 'on' : ''}`} onClick={() => up((d) => { d.combat.heroicInspiration = !d.combat.heroicInspiration; })} title="Inspiration héroïque : relancer un dé">
-              <div className="v"><Star size={18} fill={c.combat.heroicInspiration ? 'var(--brass)' : 'none'} /></div><div className="k">Inspiration</div>
-            </button>
+            <div className="stat" title="Inspiration : dépenser un point pour relancer un dé">
+              <div className="v"><Star size={18} fill={c.combat.heroicInspiration > 0 ? 'var(--brass)' : 'none'} style={{ color: 'var(--brass)' }} /> {c.combat.heroicInspiration}</div>
+              <div className="k">Inspiration</div>
+              <div className="row" style={{ justifyContent: 'center', gap: 4, marginTop: 2 }}>
+                <button className="btn ghost sm icon" style={{ minHeight: '1.6rem', minWidth: '1.6rem' }} disabled={c.combat.heroicInspiration <= 0} onClick={() => up((d) => { d.combat.heroicInspiration = Math.max(0, d.combat.heroicInspiration - 1); })} aria-label="Dépenser un point d'Inspiration"><Minus size={14} /></button>
+                <button className="btn ghost sm icon" style={{ minHeight: '1.6rem', minWidth: '1.6rem' }} onClick={() => up((d) => { d.combat.heroicInspiration += 1; })} aria-label="Gagner un point d'Inspiration"><Plus size={14} /></button>
+              </div>
+            </div>
           </div>
           <HpCard c={c} up={up} />
           <AttacksCard c={c} />
