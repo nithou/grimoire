@@ -100,7 +100,17 @@ function fromLegacy(o: Any): ImportResult {
   const m = o.maitrises ?? {};
   const inventory = asList(o.equipement).map((line) => {
     const mm = line.match(/^(\d+)\s+(.*)$/);
-    return { id: uid(), name: mm ? mm[2] : line, qty: mm ? parseInt(mm[1], 10) : 1, weight: 0, equipped: false, attuned: false, notes: '' };
+    let name = mm ? mm[2] : line;
+    // « Serpe gravée (25 po) » → valeur « 25 po » ; « Amulette (transcription incertaine) » → description
+    let value = '';
+    let notes = '';
+    const paren = name.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+    if (paren) {
+      name = paren[1];
+      if (/\d\s*(pc|pa|pe|po|pp)\b/i.test(paren[2])) value = paren[2];
+      else notes = paren[2];
+    }
+    return { id: uid(), name, qty: mm ? parseInt(mm[1], 10) : 1, weight: 0, equipped: false, attuned: false, value, notes };
   });
 
   const perso = o.personnalite ?? {};

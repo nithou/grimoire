@@ -57,6 +57,33 @@ describe('règles 5.2', () => {
     expect(R.resolveDeathSave(c, 1).char.combat.deathSaves.failure).toBe(2);
     expect(R.resolveDeathSave(c, 10).char.combat.deathSaves.success).toBe(1);
   });
+  it('3 réussites → 1 PV ; 3 échecs → mort puis résurrection', () => {
+    const c = blankCharacter();
+    c.combat.hpMax = 20;
+    c.combat.hpCurrent = 0;
+    c.combat.deathSaves = { success: 2, failure: 1 };
+    const up = R.resolveDeathSave(c, 15).char;
+    expect(up.combat.hpCurrent).toBe(1);
+    expect(up.combat.deathSaves).toEqual({ success: 0, failure: 0 });
+    c.combat.deathSaves = { success: 0, failure: 2 };
+    const dead = R.resolveDeathSave(c, 5).char;
+    expect(R.isDead(dead)).toBe(true);
+    expect(dead.combat.hpCurrent).toBe(0);
+    const back = R.resurrect(dead);
+    expect(R.isDead(back)).toBe(false);
+    expect(back.combat.hpCurrent).toBe(1);
+  });
+  it('expérience : niveaux 2024 et progression', () => {
+    expect([0, 299, 300, 2700, 6499, 6500, 355000].map(R.levelForXp)).toEqual([1, 1, 2, 4, 4, 5, 20]);
+    const c = blankCharacter();
+    c.classes = [{ id: 'x', name: 'Barbare', subclass: '', level: 4, hitDie: 'd12' }];
+    c.identity.xp = 4965;
+    const p = R.xpProgress(c);
+    expect([p.floor, p.next, p.canLevelUp]).toEqual([2700, 6500, false]);
+    expect(p.ratio).toBeCloseTo((4965 - 2700) / (6500 - 2700));
+    c.identity.xp = 7000;
+    expect(R.xpProgress(c).canLevelUp).toBe(true);
+  });
 });
 
 describe('dés', () => {
@@ -94,6 +121,8 @@ describe('import JSON', () => {
     expect(c.savingThrows).toEqual(['for', 'con']);
     expect(c.skills.athletisme.prof).toBe(1);
     expect(c.inventory[0]).toMatchObject({ name: 'javelines', qty: 4 });
+    expect(c.inventory.find((i) => i.name === 'Serpe gravée')).toMatchObject({ value: '25 po' });
+    expect(c.inventory.find((i) => i.name === 'Amulette à nager')).toMatchObject({ notes: 'transcription incertaine', value: '' });
     expect(c.resources[0]).toMatchObject({ name: 'Rage', max: 2 });
     expect(c.toVerify.length).toBe(8);
     expect(R.initiative(c)).toBe(1);

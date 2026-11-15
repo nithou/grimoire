@@ -57,6 +57,8 @@ export const Attack = z
     mastery: str,
     range: str,
     notes: str,
+    /** Nombre d'exemplaires (armes de jet, javelines…) ; null = non suivi. */
+    count: z.number().int().min(0).nullable().catch(null).default(null),
   })
   .prefault({});
 
@@ -81,6 +83,7 @@ export const Resource = z
     max: int(1),
     used: int(0),
     recharge: z.enum(['short', 'long', 'none']).catch('long').default('long'),
+    description: str,
   })
   .prefault({});
 
@@ -94,6 +97,9 @@ export const Item = z
     weight: num(0),
     equipped: bool,
     attuned: bool,
+    /** Valeur marchande libre, ex. « 25 po ». */
+    value: str,
+    /** Description de l'objet (anciennement « notes »). */
     notes: str,
   })
   .prefault({});

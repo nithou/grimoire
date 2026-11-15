@@ -43,6 +43,7 @@ export function srdToAttack(e: SrdFull): AttackT {
     damageType: DMG[(type ?? '').toLowerCase()] ?? type ?? '',
     mastery,
     range: range ? ftToM(range) : ranged ? '' : 'Contact',
+    count: /Thrown|Lancer/i.test(propsEn) ? 1 : null,
     notes: props === '—' ? '' : props,
   };
 }
@@ -55,7 +56,8 @@ export function srdToItem(e: SrdFull): ItemT {
     weight: lbToKg(e.extra?.weightLb ?? e.extra?.weight ?? e.body.match(/\*\*(?:Weight|Poids)[^*]*\*\*\s*([^\n]+)/)?.[1]),
     equipped: false,
     attuned: false,
-    notes: e.type === 'magic-item' ? e.meta : e.extra?.cost ? `Prix : ${e.extra.cost}` : '',
+    value: e.extra?.cost ?? '',
+    notes: e.type === 'magic-item' ? e.meta : '',
   };
 }
 

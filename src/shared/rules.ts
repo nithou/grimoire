@@ -165,30 +165,70 @@ export function longRest(c: Character): Character {
   return n;
 }
 
-/** Résout un jet contre la mort (d20 naturel). */
-export function resolveDeathSave(c: Character, nat: number): { char: Character; outcome: string } {
+/**
+ * Jets de sauvegarde contre la mort (règle de la table) :
+ * 3 réussites → le personnage revient avec 1 PV ; 3 échecs → mort, à ressusciter.
+ */
+export const isDead = (c: Character) => c.combat.deathSaves.failure >= 3;
+
+/** Applique un compteur de réussites/échecs et ses conséquences. */
+export function setDeathSaves(c: Character, success: number, failure: number): { char: Character; outcome: string } {
   const n = clone(c);
-  const ds = n.combat.deathSaves;
-  let outcome: string;
-  if (nat === 20) {
-    n.combat.hpCurrent = 1;
+  n.combat.deathSaves = { success: Math.max(0, Math.min(3, success)), failure: Math.max(0, Math.min(3, failure)) };
+  let outcome = '';
+  if (n.combat.deathSaves.failure >= 3) {
+    n.combat.hpCurrent = 0;
+    outcome = 'Trois échecs : le personnage est mort. Il faudra le ressusciter.';
+  } else if (n.combat.deathSaves.success >= 3) {
+    n.combat.hpCurrent = Math.max(1, n.combat.hpCurrent);
     n.combat.deathSaves = { success: 0, failure: 0 };
-    outcome = '20 naturel : vous reprenez connaissance avec 1 PV !';
-  } else if (nat === 1) {
-    ds.failure = Math.min(3, ds.failure + 2);
-    outcome = '1 naturel : deux échecs.';
-  } else if (nat >= 10) {
-    ds.success = Math.min(3, ds.success + 1);
-    outcome = 'Réussite.';
-  } else {
-    ds.failure = Math.min(3, ds.failure + 1);
-    outcome = 'Échec.';
-  }
-  if (nat !== 20) {
-    if (ds.success >= 3) outcome += ' Trois réussites : vous êtes stabilisé.';
-    if (ds.failure >= 3) outcome += ' Trois échecs : votre personnage meurt.';
+    outcome = 'Trois réussites : le personnage revient à lui avec 1 PV.';
   }
   return { char: n, outcome };
+}
+
+/** Résout un jet contre la mort (d20 naturel). */
+export function resolveDeathSave(c: Character, nat: number): { char: Character; outcome: string } {
+  const { success, failure } = c.combat.deathSaves;
+  if (nat === 20) {
+    const n = clone(c);
+    n.combat.hpCurrent = Math.max(1, n.combat.hpCurrent);
+    n.combat.deathSaves = { success: 0, failure: 0 };
+    return { char: n, outcome: '20 naturel : le personnage reprend connaissance avec 1 PV !' };
+  }
+  const label = nat === 1 ? '1 naturel : deux échecs.' : nat >= 10 ? 'Réussite.' : 'Échec.';
+  const r = nat === 1 ? setDeathSaves(c, success, failure + 2) : nat >= 10 ? setDeathSaves(c, success + 1, failure) : setDeathSaves(c, success, failure + 1);
+  return { char: r.char, outcome: `${label} ${r.outcome}`.trim() };
+}
+
+/** Résurrection : remet les jets à zéro et rend 1 PV. */
+export function resurrect(c: Character): Character {
+  const n = clone(c);
+  n.combat.deathSaves = { success: 0, failure: 0 };
+  n.combat.hpCurrent = Math.max(1, n.combat.hpCurrent);
+  return n;
+}
+
+// ---------- Expérience (règles 2024) ----------
+
+/** PX cumulés requis pour chaque niveau (index 0 = niveau 1). */
+export const XP_THRESHOLDS = [0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
+
+export function levelForXp(xp: number): number {
+  let lvl = 1;
+  for (let i = 0; i < XP_THRESHOLDS.length; i++) if (xp >= XP_THRESHOLDS[i]) lvl = i + 1;
+  return lvl;
+}
+
+/** Progression vers le niveau suivant, basée sur le niveau actuel des classes. */
+export function xpProgress(c: Character) {
+  const level = totalLevel(c);
+  const xp = Math.max(0, c.identity.xp);
+  const floor = XP_THRESHOLDS[level - 1];
+  const next = level < 20 ? XP_THRESHOLDS[level] : null;
+  const ratio = next == null ? 1 : Math.max(0, Math.min(1, (xp - floor) / (next - floor)));
+  const xpLevel = levelForXp(xp);
+  return { level, xp, floor, next, ratio, xpLevel, canLevelUp: xpLevel > level };
 }
 
 export { ABILITIES };

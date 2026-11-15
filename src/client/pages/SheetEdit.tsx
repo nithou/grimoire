@@ -27,7 +27,7 @@ export default function SheetEdit() {
 
   return (
     <div>
-      <SheetHeader id={id} c={c} mode="edit" status={status} onForce={forceSave} onReload={reload} />
+      <SheetHeader id={id} c={c} mode="edit" status={status} onForce={forceSave} onReload={reload} onXp={(xp) => up((d) => { d.identity.xp = xp; })} onPortrait={(pid) => up((d) => { d.identity.portrait = pid; if (!d.images.includes(pid)) d.images.push(pid); })} />
       <ToVerifyBanner items={c.toVerify} onChange={(v) => up((d) => { d.toVerify = v; })} />
       <Tabs<Tab>
         value={tab}
@@ -248,6 +248,10 @@ function CombatTab({ c, up }: { c: Character; up: Up }) {
           <Field label={`Épuisement (niveau ${c.combat.exhaustion} : ${R.exhaustionPenalty(c)} aux tests d20)`}>
             <Num value={c.combat.exhaustion} min={0} max={6} onChange={(v) => up((d) => { d.combat.exhaustion = Math.max(0, Math.min(6, v ?? 0)); })} />
           </Field>
+          <div className="grid g2">
+            <Field label="JdS contre la mort : réussites (/3)"><Num value={c.combat.deathSaves.success} min={0} max={3} onChange={(v) => up((d) => { Object.assign(d, R.setDeathSaves(d, v ?? 0, d.combat.deathSaves.failure).char); })} /></Field>
+            <Field label="JdS contre la mort : échecs (/3)"><Num value={c.combat.deathSaves.failure} min={0} max={3} onChange={(v) => up((d) => { Object.assign(d, R.setDeathSaves(d, d.combat.deathSaves.success, v ?? 0).char); })} /></Field>
+          </div>
           <Field label="Points d'Inspiration"><Num value={c.combat.heroicInspiration} min={0} onChange={(v) => up((d) => { d.combat.heroicInspiration = Math.max(0, v ?? 0); })} /></Field>
         </div>
       </div>
@@ -257,7 +261,7 @@ function CombatTab({ c, up }: { c: Character; up: Up }) {
           <ListEditor<AttackT>
             items={c.attacks}
             onChange={(v) => up((d) => { d.attacks = v; })}
-            make={() => ({ name: 'Nouvelle attaque', ability: 'for', proficient: true, toHitBonus: 0, damage: '1d6', addAbilityToDamage: true, damageBonus: 0, damageType: '', mastery: '', range: '', notes: '' })}
+            make={() => ({ name: 'Nouvelle attaque', ability: 'for', proficient: true, toHitBonus: 0, damage: '1d6', addAbilityToDamage: true, damageBonus: 0, damageType: '', mastery: '', range: '', notes: '', count: null })}
             render={(a, set) => (
               <div className="stack">
                 <div className="grid g3">
@@ -277,6 +281,7 @@ function CombatTab({ c, up }: { c: Character; up: Up }) {
                   <Field label="Botte d'arme"><Text list="dl-mastery" value={a.mastery} onChange={(v) => set({ mastery: v })} /></Field>
                   <Field label="Portée"><Text value={a.range} onChange={(v) => set({ range: v })} /></Field>
                   <Field label="Notes"><Text value={a.notes} onChange={(v) => set({ notes: v })} /></Field>
+                  <Field label="Nombre (armes de jet, javelines…)"><Num nullable placeholder="—" value={a.count} min={0} onChange={(v) => set({ count: v == null ? null : Math.max(0, v) })} /></Field>
                 </div>
                 <div className="row small">
                   <label className="row"><input type="checkbox" checked={a.proficient} onChange={(e) => set({ proficient: e.target.checked })} /> Maîtrisée</label>
@@ -305,13 +310,16 @@ function ResourcesCard({ c, up }: { c: Character; up: Up }) {
       <ListEditor<ResourceT>
         items={c.resources}
         onChange={(v) => up((d) => { d.resources = v; })}
-        make={() => ({ name: '', max: 1, used: 0, recharge: 'long' })}
+        make={() => ({ name: '', max: 1, used: 0, recharge: 'long', description: '' })}
         render={(r, set) => (
-          <div className="grid g4">
-            <Field label="Nom"><Text value={r.name} onChange={(v) => set({ name: v })} /></Field>
-            <Field label="Maximum"><Num value={r.max} min={0} onChange={(v) => set({ max: v ?? 0 })} /></Field>
-            <Field label="Dépensées"><Num value={r.used} min={0} onChange={(v) => set({ used: v ?? 0 })} /></Field>
-            <Field label="Recharge"><Select value={r.recharge} onChange={(v) => set({ recharge: v })} options={[{ value: 'short', label: 'Repos court' }, { value: 'long', label: 'Repos long' }, { value: 'none', label: 'Manuelle' }]} /></Field>
+          <div className="stack">
+            <div className="grid g4">
+              <Field label="Nom"><Text value={r.name} onChange={(v) => set({ name: v })} /></Field>
+              <Field label="Maximum"><Num value={r.max} min={0} onChange={(v) => set({ max: v ?? 0 })} /></Field>
+              <Field label="Dépensées"><Num value={r.used} min={0} onChange={(v) => set({ used: v ?? 0 })} /></Field>
+              <Field label="Recharge"><Select value={r.recharge} onChange={(v) => set({ recharge: v })} options={[{ value: 'short', label: 'Repos court' }, { value: 'long', label: 'Repos long' }, { value: 'none', label: 'Manuelle' }]} /></Field>
+            </div>
+            <Field label="Description (effets, conditions d'usage…)"><TextArea rows={2} value={r.description} onChange={(v) => set({ description: v })} /></Field>
           </div>
         )}
       />
@@ -406,15 +414,16 @@ function InventoryTab({ c, up }: { c: Character; up: Up }) {
         <ListEditor<ItemT>
           items={c.inventory}
           onChange={(v) => up((d) => { d.inventory = v; })}
-          make={() => ({ name: '', qty: 1, weight: 0, equipped: false, attuned: false, notes: '' })}
+          make={() => ({ name: '', qty: 1, weight: 0, equipped: false, attuned: false, value: '', notes: '' })}
           render={(it, set) => (
             <div className="stack">
               <div className="grid g4">
                 <Field label="Objet" className=""><Text value={it.name} onChange={(v) => set({ name: v })} /></Field>
                 <Field label="Quantité"><Num value={it.qty} min={0} onChange={(v) => set({ qty: v ?? 0 })} /></Field>
                 <Field label="Poids unitaire (kg)"><Num value={it.weight} min={0} step={0.1} onChange={(v) => set({ weight: v ?? 0 })} /></Field>
-                <Field label="Notes"><Text value={it.notes} onChange={(v) => set({ notes: v })} /></Field>
+                <Field label="Valeur"><Text value={it.value} placeholder="ex. 25 po" onChange={(v) => set({ value: v })} /></Field>
               </div>
+              <Field label="Description"><TextArea rows={2} value={it.notes} onChange={(v) => set({ notes: v })} /></Field>
               <div className="row small">
                 <label className="row"><input type="checkbox" checked={it.equipped} onChange={(e) => set({ equipped: e.target.checked })} /> Équipé</label>
                 <label className="row"><input type="checkbox" checked={it.attuned} onChange={(e) => set({ attuned: e.target.checked })} /> Harmonisé</label>

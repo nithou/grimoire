@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Bed, BookOpen, Coffee, Dices, Heart, HeartPulse, Minus, Plus, Shield, Skull, Sparkles, Swords, Trash2, Wand2, Backpack, NotebookPen, Star, Zap } from 'lucide-react';
+import { Bed, BookOpen, Coffee, Dices, Heart, HeartPulse, Minus, Plus, Shield, Skull, Sparkles, Swords, Trash2, Wand2, Backpack, NotebookPen, Star, Zap, LayoutGrid, Drama, Images } from 'lucide-react';
 import { useCharacter } from '../useCharacter';
 import { DiceProvider, DiceTray, ModeSwitch, useDice } from '../dice';
 import type { Character } from '../../shared/schema';
 import { uid } from '../../shared/schema';
 import * as R from '../../shared/rules';
 import { ABILITIES, ABILITY_LABELS, COINS, CONDITIONS, SKILLS } from '../../shared/srd-fr';
-import { Markdown, Modal, Num, Pips, Skeleton, TextArea } from '../ui';
+import { Markdown, Modal, Num, Pips, Skeleton, Tabs, TextArea } from '../ui';
+import { Gallery } from '../components/Gallery';
 import { SheetHeader, ToVerifyBanner } from '../components/SheetHeader';
 import { SrdDetail, SrdPicker } from '../components/SrdPicker';
 import { srdToItem } from '../srdToSheet';
@@ -26,113 +27,240 @@ export default function SheetPlay() {
   );
 }
 
+type PlayTab = 'general' | 'inventaire' | 'notes';
+const TAB_KEY = 'grimoire.playTab';
+
 function PlayInner({ id, c, up, status, reload, force }: { id: string; c: Character; up: Up; status: any; reload: () => void; force: () => void }) {
   const dice = useDice();
   const pen = R.exhaustionPenalty(c);
   const [srdOpen, setSrdOpen] = useState<string | null>(null);
   const [itemPicker, setItemPicker] = useState(false);
+  const [tab, setTabState] = useState<PlayTab>(() => {
+    try {
+      return (localStorage.getItem(TAB_KEY) as PlayTab) || 'general';
+    } catch {
+      return 'general';
+    }
+  });
+  const setTab = (t: PlayTab) => {
+    setTabState(t);
+    try { localStorage.setItem(TAB_KEY, t); } catch { /* stockage indisponible */ }
+  };
 
   const check = (label: string, bonus: number) => dice.d20(label, bonus, { penalty: pen });
+  const pp = R.passivePerception(c);
+  const ppAuto = 10 + R.skillBonus(c, 'perception');
 
   return (
     <div>
-      <SheetHeader id={id} c={c} mode="play" status={status} onForce={force} onReload={reload} />
+      <SheetHeader id={id} c={c} mode="play" status={status} onForce={force} onReload={reload} onXp={(xp) => up((d) => { d.identity.xp = xp; })} />
       <ToVerifyBanner items={c.toVerify} />
 
-      <div className="sticky-tools row spread no-print">
-        <ModeSwitch />
-        <div className="row">
-          {c.combat.exhaustion > 0 && <span className="chip warn">Épuisement {c.combat.exhaustion} ({pen})</span>}
-          <button className="btn sm" onClick={() => up((d) => R.shortRest(d))} title="Recharge les ressources « repos court »"><Coffee size={16} /> Repos court</button>
-          <button className="btn sm" onClick={() => { if (confirm('Repos long : PV, dés de vie, emplacements et ressources restaurés, épuisement −1. Continuer ?')) up((d) => R.longRest(d)); }}><Bed size={16} /> Repos long</button>
+      <div className="sticky-tools no-print">
+        <div className="row spread" style={{ alignItems: 'flex-end' }}>
+          <Tabs<PlayTab>
+            value={tab}
+            onChange={setTab}
+            tabs={[
+              { key: 'general', label: 'Général', icon: <LayoutGrid size={16} /> },
+              { key: 'inventaire', label: 'Inventaire', icon: <Backpack size={16} /> },
+              { key: 'notes', label: 'Notes', icon: <NotebookPen size={16} /> },
+            ]}
+          />
+          <div className="row" style={{ paddingBottom: 6 }}>
+            {c.combat.exhaustion > 0 && <span className="chip warn">Épuisement {c.combat.exhaustion} ({pen})</span>}
+            <button className="btn sm" onClick={() => up((d) => R.shortRest(d))} title="Recharge les ressources « repos court »"><Coffee size={16} /> Repos court</button>
+            <button className="btn sm" onClick={() => { if (confirm('Repos long : PV, dés de vie, emplacements et ressources restaurés, épuisement −1. Continuer ?')) up((d) => R.longRest(d)); }}><Bed size={16} /> Repos long</button>
+          </div>
         </div>
       </div>
 
-      <div className="sheet-layout three">
-        {/* ---------- Colonne 1 : caractéristiques & compétences ---------- */}
-        <div className="stack" style={{ gap: '1rem' }}>
-          <div className="card stack">
-            <h2><Sparkles size={18} /> Caractéristiques</h2>
-            <div className="abil-grid">
-              {ABILITIES.map((a) => {
-                const m = R.mod(c, a);
-                const prof = c.savingThrows.includes(a);
-                return (
-                  <div key={a} className="stack" style={{ gap: 4, alignItems: 'stretch' }}>
-                    <button className="plate" onClick={() => check(`Test de ${ABILITY_LABELS[a].long}`, m)} title={`Test de ${ABILITY_LABELS[a].long}`}>
-                      <div className="lbl">{ABILITY_LABELS[a].short}</div>
-                      <div className="big">{fm(m)}</div>
-                      <div className="sub">{c.abilities[a]}</div>
-                    </button>
-                    <button className={`save-chip ${prof ? 'on' : ''}`} style={{ justifyContent: 'center' }} onClick={() => check(`Sauvegarde de ${ABILITY_LABELS[a].long}`, R.saveBonus(c, a))} title="Jet de sauvegarde">
-                      JS {fm(R.saveBonus(c, a))}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          <div className="card">
-            <h2>Compétences</h2>
-            <ul className="list">
-              {SKILLS.map((s) => {
-                const st = c.skills[s.key]?.prof ?? 0;
-                return (
-                  <li key={s.key} style={{ padding: '0.1rem 0' }}>
-                    <button className="rollable" onClick={() => check(s.label, R.skillBonus(c, s.key))}>
-                      <span className={`pip ${st === 2 ? 'on' : st === 1 ? 'half' : ''}`} style={{ cursor: 'inherit' }} title={['Non maîtrisée', 'Maîtrise', 'Expertise'][st]} />
-                      <span className="grow">{s.label} <span className="muted small">{ABILITY_LABELS[s.ability].short}</span></span>
-                      <span className="bonus">{fm(R.skillBonus(c, s.key))}</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            <div className="small muted" style={{ marginTop: 6 }}>Perception passive {R.passivePerception(c)}</div>
-          </div>
-          <ProficienciesCard c={c} />
-        </div>
-
-        {/* ---------- Colonne 2 : combat ---------- */}
-        <div className="stack" style={{ gap: '1rem' }}>
-          <div className="stat-strip">
-            <div className="stat" title={c.combat.acNote}><div className="v"><Shield size={16} /> {c.combat.ac}</div><div className="k">Classe d'armure</div></div>
-            <button className="stat" onClick={() => check('Initiative', R.initiative(c))}><div className="v">{fm(R.initiative(c))}</div><div className="k">Initiative</div></button>
-            <div className="stat"><div className="v">{R.speed(c)} m</div><div className="k">Vitesse</div></div>
-            <div className="stat"><div className="v">{fm(R.proficiencyBonus(c))}</div><div className="k">Maîtrise</div></div>
-            <div className="stat" title="Inspiration : dépenser un point pour relancer un dé">
-              <div className="v"><Star size={18} fill={c.combat.heroicInspiration > 0 ? 'var(--brass)' : 'none'} style={{ color: 'var(--brass)' }} /> {c.combat.heroicInspiration}</div>
-              <div className="k">Inspiration</div>
-              <div className="row" style={{ justifyContent: 'center', gap: 4, marginTop: 2 }}>
-                <button className="btn ghost sm icon" style={{ minHeight: '1.6rem', minWidth: '1.6rem' }} disabled={c.combat.heroicInspiration <= 0} onClick={() => up((d) => { d.combat.heroicInspiration = Math.max(0, d.combat.heroicInspiration - 1); })} aria-label="Dépenser un point d'Inspiration"><Minus size={14} /></button>
-                <button className="btn ghost sm icon" style={{ minHeight: '1.6rem', minWidth: '1.6rem' }} onClick={() => up((d) => { d.combat.heroicInspiration += 1; })} aria-label="Gagner un point d'Inspiration"><Plus size={14} /></button>
+      {tab === 'general' && (
+        <div className="sheet-layout three fade-in">
+          {/* ---------- Colonne 1 : caractéristiques, compétences, maîtrises, personnalité ---------- */}
+          <div className="stack" style={{ gap: '1rem' }}>
+            <div className="card stack">
+              <h2><Sparkles size={18} /> Caractéristiques</h2>
+              <div className="abil-grid">
+                {ABILITIES.map((a) => {
+                  const m = R.mod(c, a);
+                  const prof = c.savingThrows.includes(a);
+                  return (
+                    <div key={a} className="stack" style={{ gap: 4, alignItems: 'stretch' }}>
+                      <button className="plate" onClick={() => check(`Test de ${ABILITY_LABELS[a].long}`, m)} title={`Test de ${ABILITY_LABELS[a].long}`}>
+                        <div className="lbl">{ABILITY_LABELS[a].short}</div>
+                        <div className="big">{fm(m)}</div>
+                        <div className="sub">{c.abilities[a]}</div>
+                      </button>
+                      <button className={`save-chip ${prof ? 'on' : ''}`} onClick={() => check(`Sauvegarde de ${ABILITY_LABELS[a].long}`, R.saveBonus(c, a))} title="Jet de sauvegarde">
+                        JS {fm(R.saveBonus(c, a))}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
+            <div className="card">
+              <h2>Compétences</h2>
+              <ul className="list">
+                {SKILLS.map((s) => {
+                  const st = c.skills[s.key]?.prof ?? 0;
+                  return (
+                    <li key={s.key} style={{ padding: '0.1rem 0' }}>
+                      <button className="rollable" onClick={() => check(s.label, R.skillBonus(c, s.key))}>
+                        <span className={`pip ${st === 2 ? 'on' : st === 1 ? 'half' : ''}`} style={{ cursor: 'inherit' }} title={['Non maîtrisée', 'Maîtrise', 'Expertise'][st]} />
+                        <span className="grow">{s.label} <span className="muted small">{ABILITY_LABELS[s.ability].short}</span></span>
+                        <span className="bonus">{fm(R.skillBonus(c, s.key))}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="small muted" style={{ marginTop: 6 }} title="10 + bonus de Perception">
+                Perception passive <strong style={{ color: 'var(--text-strong)' }}>{pp}</strong>
+                {c.overrides.passivePerception != null && pp !== ppAuto && <> — valeur forcée (calcul : {ppAuto}), modifiable dans Édition › Caractéristiques</>}
+              </div>
+            </div>
+            <ProficienciesCard c={c} />
+            <PersonalityCard c={c} />
           </div>
-          <HpCard c={c} up={up} />
-          <AttacksCard c={c} />
-          <SpellsCard c={c} up={up} onOpen={setSrdOpen} />
-          <ResourcesCard c={c} up={up} />
-          <ConditionsCard c={c} up={up} />
-        </div>
 
-        {/* ---------- Colonne 3 : inventaire, notes, dés ---------- */}
-        <div className="stack" style={{ gap: '1rem' }}>
-          <div className="card">
-            <h2><Dices size={18} /> Dés</h2>
-            <DiceTray />
+          {/* ---------- Colonne 2 : combat ---------- */}
+          <div className="stack" style={{ gap: '1rem' }}>
+            <div className="stat-strip">
+              <div className="stat" title={c.combat.acNote}><div className="v"><Shield size={16} /> {c.combat.ac}</div><div className="k">Classe d'armure</div></div>
+              <button className="stat" onClick={() => check('Initiative', R.initiative(c))}><div className="v">{fm(R.initiative(c))}</div><div className="k">Initiative</div></button>
+              <div className="stat"><div className="v">{R.speed(c)} m</div><div className="k">Vitesse</div></div>
+              <div className="stat"><div className="v">{fm(R.proficiencyBonus(c))}</div><div className="k">Maîtrise</div></div>
+            </div>
+            <InspirationBar c={c} up={up} />
+            <HpCard c={c} up={up} />
+            <DeathSavesCard c={c} up={up} />
+            <AttacksCard c={c} up={up} />
+            <SpellsCard c={c} up={up} onOpen={setSrdOpen} />
+            <ResourcesCard c={c} up={up} />
+            <ConditionsCard c={c} up={up} />
           </div>
+
+          {/* ---------- Colonne 3 : dés, aptitudes ---------- */}
+          <div className="stack" style={{ gap: '1rem' }}>
+            <div className="card stack">
+              <h2><Dices size={18} /> Dés</h2>
+              <div className="stack" style={{ gap: 4 }}>
+                <span className="small muted">Mode des jets d20 (tests, sauvegardes, attaques)</span>
+                <ModeSwitch />
+              </div>
+              <DiceTray />
+            </div>
+            <FeaturesCard c={c} />
+          </div>
+        </div>
+      )}
+
+      {tab === 'inventaire' && (
+        <div className="fade-in">
           <InventoryCard c={c} up={up} onSrd={() => setItemPicker(true)} />
-          <FeaturesCard c={c} />
+        </div>
+      )}
+
+      {tab === 'notes' && (
+        <div className="sheet-layout fade-in">
           <div className="card stack">
             <h2><NotebookPen size={18} /> Notes</h2>
-            <TextArea rows={8} value={c.notes} onChange={(v) => up((d) => { d.notes = v; })} placeholder="Notes de session, PNJ, indices…" />
+            <TextArea rows={18} value={c.notes} onChange={(v) => up((d) => { d.notes = v; })} placeholder="Notes de session, PNJ, indices…" />
+          </div>
+          <div className="card stack">
+            <h2><Images size={18} /> Images</h2>
+            <Gallery characterId={id} portrait={c.identity.portrait} onSetPortrait={(p) => up((d) => { d.identity.portrait = p; })} />
           </div>
         </div>
-      </div>
+      )}
 
       {srdOpen && <Modal title="Règles" onClose={() => setSrdOpen(null)}><SrdDetail id={srdOpen} /></Modal>}
       {itemPicker && <SrdPicker title="Ajouter un objet" types={['gear', 'tool', 'weapon', 'armor', 'magic-item']} onClose={() => setItemPicker(false)} onPick={(e) => up((d) => { d.inventory.push(srdToItem(e)); })} />}
+    </div>
+  );
+}
+
+function InspirationBar({ c, up }: { c: Character; up: Up }) {
+  const n = c.combat.heroicInspiration;
+  return (
+    <div className="card row spread" style={{ padding: '0.55rem 0.9rem' }} title="Inspiration : dépenser un point pour relancer un dé">
+      <span className="row" style={{ gap: 8 }}>
+        <Star size={20} fill={n > 0 ? 'var(--gold)' : 'none'} style={{ color: 'var(--gold)' }} />
+        <strong>Inspiration</strong>
+        <span className="big-num">{n}</span>
+      </span>
+      <span className="row" style={{ gap: 4 }}>
+        <button className="btn sm" disabled={n <= 0} onClick={() => up((d) => { d.combat.heroicInspiration = Math.max(0, d.combat.heroicInspiration - 1); })}><Minus size={14} /> Dépenser</button>
+        <button className="btn sm icon" onClick={() => up((d) => { d.combat.heroicInspiration += 1; })} aria-label="Gagner un point d'Inspiration"><Plus size={14} /></button>
+      </span>
+    </div>
+  );
+}
+
+function DeathSavesCard({ c, up }: { c: Character; up: Up }) {
+  const dice = useDice();
+  const { success, failure } = c.combat.deathSaves;
+  const dead = R.isDead(c);
+  const dying = c.combat.hpCurrent === 0 && !dead;
+  const set = (s: number, f: number) => {
+    const r = R.setDeathSaves(c, s, f);
+    up(() => r.char);
+  };
+  return (
+    <div className={`card stack ${dying ? 'dying' : ''} ${dead ? 'dead' : ''}`}>
+      <div className="card-title">
+        <h2><Skull size={18} /> JdS contre la mort</h2>
+        <button className="btn sm" disabled={dead} onClick={() => dice.d20('Sauvegarde contre la mort', 0, {
+          mode: 'normal',
+          onResult: (nat) => {
+            const r = R.resolveDeathSave(c, nat);
+            up(() => r.char);
+            return { note: r.outcome };
+          },
+        })}><Dices size={14} /> Lancer</button>
+      </div>
+      <div className="death-row">
+        <span>Réussites</span>
+        <Pips max={3} used={3 - success} label="Réussites" onChange={(u) => set(3 - u, failure)} />
+        <span className="muted small">{success}/3</span>
+      </div>
+      <div className="death-row fail">
+        <span>Échecs</span>
+        <Pips max={3} used={3 - failure} label="Échecs" onChange={(u) => set(success, 3 - u)} />
+        <span className="muted small">{failure}/3</span>
+      </div>
+      {dying && <div className="small">Le personnage est à terre (0 PV) : lancez un jet à chaque tour. 3 réussites → retour avec 1 PV.</div>}
+      {dead && (
+        <div className="banner row spread">
+          <strong>Le personnage est mort.</strong>
+          <button className="btn sm primary" onClick={() => { if (confirm('Ressusciter le personnage (1 PV, jets remis à zéro) ?')) up((d) => R.resurrect(d)); }}>Ressusciter</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PersonalityCard({ c }: { c: Character }) {
+  const p = c.personality;
+  const rows: [string, string][] = [['Traits', p.traits], ['Idéaux', p.ideals], ['Liens', p.bonds], ['Défauts', p.flaws]];
+  if (rows.every(([, v]) => !v.trim()) && !p.backstory.trim()) return null;
+  return (
+    <div className="card stack">
+      <h2><Drama size={18} /> Personnalité</h2>
+      {rows.filter(([, v]) => v.trim()).map(([k, v]) => (
+        <div key={k}>
+          <div className="field-label">{k}</div>
+          <div style={{ whiteSpace: 'pre-wrap' }}>{v}</div>
+        </div>
+      ))}
+      {p.backstory.trim() && (
+        <details>
+          <summary style={{ cursor: 'pointer' }} className="field-label">Histoire</summary>
+          <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{p.backstory}</div>
+        </details>
+      )}
     </div>
   );
 }
@@ -141,7 +269,7 @@ function PlayInner({ id, c, up, status, reload, force }: { id: string; c: Charac
 function HpCard({ c, up }: { c: Character; up: Up }) {
   const dice = useDice();
   const [amt, setAmt] = useState<number | null>(null);
-  const { hpCurrent, hpMax, hpTemp, deathSaves } = c.combat;
+  const { hpCurrent, hpMax, hpTemp } = c.combat;
   const pct = Math.max(0, Math.min(100, (hpCurrent / Math.max(1, hpMax)) * 100));
   const n = amt ?? 0;
   const conMod = R.mod(c, 'con');
@@ -163,9 +291,9 @@ function HpCard({ c, up }: { c: Character; up: Up }) {
     <div className="card stack brass">
       <div className="card-title">
         <h2><Heart size={18} /> Points de vie</h2>
-        <span className="mono" style={{ fontSize: '1.5rem' }}>
+        <span className="big-num">
           <strong>{hpCurrent}</strong><span className="muted">/{hpMax}</span>
-          {hpTemp > 0 && <span style={{ color: 'var(--teal)' }}> +{hpTemp}</span>}
+          {hpTemp > 0 && <span style={{ color: 'var(--info)' }}> +{hpTemp}</span>}
         </span>
       </div>
       <div className="hp-bar" aria-hidden><span style={{ width: `${pct}%` }} /></div>
@@ -177,25 +305,6 @@ function HpCard({ c, up }: { c: Character; up: Up }) {
         <button className="btn sm" disabled={!n} onClick={() => { up((d) => R.applyHealing(d, n)); setAmt(null); }} style={{ color: 'var(--success)', borderColor: 'var(--success)' }}><Plus size={16} /> Soins</button>
         <button className="btn sm teal" disabled={!n} onClick={() => { up((d) => R.setTempHp(d, n)); setAmt(null); }} title="PV temporaires">Temp.</button>
       </div>
-      {hpCurrent === 0 && (
-        <div className="banner stack">
-          <strong><Skull size={16} style={{ verticalAlign: '-3px' }} /> Jets de sauvegarde contre la mort</strong>
-          <div className="row small">
-            Réussites <Pips max={3} used={3 - deathSaves.success} onChange={(u) => up((d) => { d.combat.deathSaves.success = 3 - u; })} />
-            Échecs <Pips max={3} used={3 - deathSaves.failure} onChange={(u) => up((d) => { d.combat.deathSaves.failure = 3 - u; })} />
-          </div>
-          <button className="btn primary sm" style={{ alignSelf: 'flex-start' }} onClick={() => {
-            dice.d20('Sauvegarde contre la mort', 0, {
-              mode: 'normal',
-              onResult: (nat) => {
-                const r = R.resolveDeathSave(c, nat);
-                up(() => r.char);
-                return { note: r.outcome };
-              },
-            });
-          }}>Lancer le jet</button>
-        </div>
-      )}
       {c.combat.hitDice.length > 0 && (
         <div className="row small">
           <HeartPulse size={16} /> Dés de vie :
@@ -211,7 +320,7 @@ function HpCard({ c, up }: { c: Character; up: Up }) {
   );
 }
 
-function AttacksCard({ c }: { c: Character }) {
+function AttacksCard({ c, up }: { c: Character; up: Up }) {
   const dice = useDice();
   const pen = R.exhaustionPenalty(c);
   if (!c.attacks.length && R.spellAttack(c) == null) return null;
@@ -228,6 +337,13 @@ function AttacksCard({ c }: { c: Character }) {
                 <span className="grow" style={{ minWidth: 0 }}>
                   <strong>{a.name}</strong>
                   <span className="small muted" style={{ display: 'block' }}>{[a.range, a.mastery, a.notes].filter(Boolean).join(' · ')}</span>
+                  {a.count != null && (
+                    <span className="row small" style={{ gap: 4, marginTop: 2 }}>
+                      <button className="btn ghost sm icon" style={{ minHeight: '1.6rem', minWidth: '1.6rem' }} disabled={a.count <= 0} onClick={() => up((d) => { const x = d.attacks.find((y) => y.id === a.id)!; x.count = Math.max(0, (x.count ?? 0) - 1); })} aria-label={`Utiliser un(e) ${a.name}`}><Minus size={13} /></button>
+                      <span className={a.count === 0 ? 'error' : ''}>× <strong>{a.count}</strong></span>
+                      <button className="btn ghost sm icon" style={{ minHeight: '1.6rem', minWidth: '1.6rem' }} onClick={() => up((d) => { const x = d.attacks.find((y) => y.id === a.id)!; x.count = (x.count ?? 0) + 1; })} aria-label={`Récupérer un(e) ${a.name}`}><Plus size={13} /></button>
+                    </span>
+                  )}
                 </span>
                 <button className="btn sm mono" onClick={() => dice.d20(`Attaque : ${a.name}`, hit, {
                   penalty: pen,
@@ -301,8 +417,11 @@ function ResourcesCard({ c, up }: { c: Character; up: Up }) {
       <h2><Zap size={18} /> Ressources</h2>
       <ul className="list">
         {c.resources.map((r) => (
-          <li key={r.id} className="row spread">
-            <span>{r.name} <span className="small muted">({{ short: 'repos court', long: 'repos long', none: 'manuel' }[r.recharge]})</span></span>
+          <li key={r.id} className="row spread" style={{ alignItems: 'flex-start' }}>
+            <span className="grow" style={{ minWidth: 0 }}>
+              {r.name} <span className="small muted">({{ short: 'repos court', long: 'repos long', none: 'manuel' }[r.recharge]})</span>
+              {r.description && <span className="small muted" style={{ display: 'block', whiteSpace: 'pre-wrap' }}>{r.description}</span>}
+            </span>
             {r.max <= 12 ? (
               <Pips max={r.max} used={r.used} onChange={(u) => up((d) => { d.resources.find((x) => x.id === r.id)!.used = u; })} />
             ) : (
@@ -345,46 +464,64 @@ function InventoryCard({ c, up, onSrd }: { c: Character; up: Up; onSrd: () => vo
   const [name, setName] = useState('');
   const setItem = (id: string, fn: (i: Character['inventory'][number]) => void) => up((d) => { const i = d.inventory.find((x) => x.id === id); if (i) fn(i); });
   return (
-    <div className="card stack">
-      <div className="card-title">
-        <h2><Backpack size={18} /> Inventaire</h2>
-        <button className="btn sm" onClick={onSrd}><BookOpen size={15} /> SRD</button>
+    <div className="sheet-layout" style={{ gridTemplateColumns: 'minmax(0, 3fr) minmax(0, 9fr)' }}>
+      <div className="stack" style={{ gap: '1rem' }}>
+        <div className="card stack">
+          <h2>Bourse</h2>
+          <div className="coins">
+            {COINS.map((k) => (
+              <label key={k.key} className="coin" title={k.long}>
+                <span className={`coin-badge coin-${k.key}`}>{k.label}</span>
+                <Num value={c.coins[k.key]} min={0} onChange={(v) => up((d) => { d.coins[k.key] = Math.max(0, v ?? 0); })} />
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="card small stack">
+          <h2>Charge</h2>
+          <div><span className="big-num">{R.carriedWeight(c)}</span> <span className="muted">/ {R.carryingCapacity(c)} kg</span></div>
+          <div className="muted">Objets harmonisés : {c.inventory.filter((i) => i.attuned).length}/3</div>
+        </div>
       </div>
-      <div className="grid g6" style={{ gap: 6 }}>
-        {COINS.map((k) => (
-          <label key={k.key} className="field" style={{ textAlign: 'center' }} title={k.long}>
-            <span>{k.label}</span>
-            <Num value={c.coins[k.key]} min={0} onChange={(v) => up((d) => { d.coins[k.key] = Math.max(0, v ?? 0); })} />
-          </label>
-        ))}
+      <div className="card stack">
+        <div className="card-title">
+          <h2><Backpack size={18} /> Inventaire</h2>
+          <button className="btn sm" onClick={onSrd}><BookOpen size={15} /> Ajouter depuis le SRD</button>
+        </div>
+        <ul className="list inv">
+          {c.inventory.length === 0 && <li className="muted">Inventaire vide.</li>}
+          {c.inventory.map((i) => (
+            <li key={i.id}>
+              <div className="row" style={{ flexWrap: 'nowrap', gap: 6 }}>
+                <input type="checkbox" checked={i.equipped} onChange={(e) => setItem(i.id, (x) => { x.equipped = e.target.checked; })} title="Équipé" aria-label={`Équiper ${i.name}`} />
+                <span className="grow inv-name">
+                  {i.name}
+                  {i.equipped && <span className="chip">équipé</span>}
+                  {i.attuned && <span className="chip">harmonisé</span>}
+                </span>
+                {i.value && <span className="chip warn" title="Valeur">{i.value}</span>}
+                <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty = Math.max(0, x.qty - 1); })} aria-label="Retirer un"><Minus size={14} /></button>
+                <span className="big-num" style={{ minWidth: 28, textAlign: 'center', fontSize: '1.1rem' }}>{i.qty}</span>
+                <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty += 1; })} aria-label="Ajouter un"><Plus size={14} /></button>
+                <button className="btn ghost sm icon" style={{ color: 'var(--danger)' }} onClick={() => { if (confirm(`Retirer « ${i.name} » de l'inventaire ?`)) up((d) => { d.inventory = d.inventory.filter((x) => x.id !== i.id); }); }} aria-label="Supprimer"><Trash2 size={14} /></button>
+              </div>
+              {i.notes && <div className="inv-desc">{i.notes}</div>}
+            </li>
+          ))}
+        </ul>
+        <form className="row" style={{ flexWrap: 'nowrap' }} onSubmit={(e) => {
+          e.preventDefault();
+          const t = name.trim();
+          if (!t) return;
+          const m = t.match(/^(\d+)\s+(.*)$/);
+          up((d) => { d.inventory.push({ id: uid(), name: m ? m[2] : t, qty: m ? parseInt(m[1], 10) : 1, weight: 0, equipped: false, attuned: false, value: '', notes: '' }); });
+          setName('');
+        }}>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ajouter un objet (ex. 3 torches)" />
+          <button className="btn sm" type="submit" aria-label="Ajouter"><Plus size={16} /></button>
+        </form>
+        <div className="small muted">Valeur, poids et description se modifient dans Édition › Inventaire.</div>
       </div>
-      <ul className="list">
-        {c.inventory.map((i) => (
-          <li key={i.id} className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
-            <input type="checkbox" checked={i.equipped} onChange={(e) => setItem(i.id, (x) => { x.equipped = e.target.checked; })} title="Équipé" aria-label={`Équiper ${i.name}`} />
-            <span className="grow" style={{ minWidth: 0 }}>
-              {i.name}{i.attuned && <span className="chip" style={{ marginLeft: 4 }}>harmonisé</span>}
-              {i.notes && <span className="small muted" style={{ display: 'block' }}>{i.notes}</span>}
-            </span>
-            <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty = Math.max(0, x.qty - 1); })} aria-label="Retirer un"><Minus size={14} /></button>
-            <span className="mono" style={{ minWidth: 24, textAlign: 'center' }}>{i.qty}</span>
-            <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty += 1; })} aria-label="Ajouter un"><Plus size={14} /></button>
-            <button className="btn ghost sm icon" style={{ color: 'var(--danger)' }} onClick={() => { if (confirm(`Retirer « ${i.name} » de l'inventaire ?`)) up((d) => { d.inventory = d.inventory.filter((x) => x.id !== i.id); }); }} aria-label="Supprimer"><Trash2 size={14} /></button>
-          </li>
-        ))}
-      </ul>
-      <form className="row" style={{ flexWrap: 'nowrap' }} onSubmit={(e) => {
-        e.preventDefault();
-        const t = name.trim();
-        if (!t) return;
-        const m = t.match(/^(\d+)\s+(.*)$/);
-        up((d) => { d.inventory.push({ id: uid(), name: m ? m[2] : t, qty: m ? parseInt(m[1], 10) : 1, weight: 0, equipped: false, attuned: false, notes: '' }); });
-        setName('');
-      }}>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ajouter un objet (ex. 3 torches)" />
-        <button className="btn sm" type="submit" aria-label="Ajouter"><Plus size={16} /></button>
-      </form>
-      <div className="small muted">Charge {R.carriedWeight(c)} / {R.carryingCapacity(c)} kg</div>
     </div>
   );
 }
