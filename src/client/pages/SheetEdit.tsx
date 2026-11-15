@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { BookOpen, Backpack, Image, ScrollText, Shield, Sparkles, User, Wand2, RefreshCw, Plus, Trash2, Crown, History, Eye } from 'lucide-react';
+import { BookOpen, Backpack, Image, NotebookPen, ScrollText, Shield, Sparkles, User, Wand2, RefreshCw, Plus, Trash2, Crown, History, Eye } from 'lucide-react';
 import { CharacterLog } from '../components/CharacterLog';
 import { SharePanel } from '../components/SharePanel';
 import { useCharacter } from '../useCharacter';
@@ -19,7 +19,7 @@ import { SrdPicker } from '../components/SrdPicker';
 import { Gallery } from '../components/Gallery';
 import { srdToAttack, srdToFeature, srdToItem, srdToSpell } from '../srdToSheet';
 
-type Tab = 'identite' | 'stats' | 'combat' | 'sorts' | 'inventaire' | 'profil' | 'images' | 'partage' | 'log';
+type Tab = 'identite' | 'stats' | 'combat' | 'sorts' | 'inventaire' | 'profil' | 'notes' | 'partage' | 'log';
 type Up = (fn: (c: Character) => void) => void;
 
 const fm = R.fmtMod;
@@ -45,7 +45,7 @@ export default function SheetEdit() {
           { key: 'sorts', label: 'Sorts', icon: <Wand2 size={16} /> },
           { key: 'inventaire', label: 'Inventaire', icon: <Backpack size={16} /> },
           { key: 'profil', label: 'Profil & aptitudes', icon: <ScrollText size={16} /> },
-          { key: 'images', label: 'Images', icon: <Image size={16} /> },
+          { key: 'notes', label: 'Notes', icon: <NotebookPen size={16} /> },
           { key: 'partage', label: role === 'dm' ? 'Maître du Donjon' : 'Partage (MJ)', icon: <Crown size={16} /> },
           { key: 'log', label: 'Log', icon: <History size={16} /> },
         ]}
@@ -59,8 +59,18 @@ export default function SheetEdit() {
         {tab === 'profil' && <ProfileTab c={c} up={up} />}
         {tab === 'partage' && <SharePanel characterId={id} role={role} owner={owner} />}
         {tab === 'log' && <CharacterLog characterId={id} refreshKey={status === 'saved'} />}
-        {tab === 'images' && (
-          <div className="card"><Gallery characterId={id} portrait={c.identity.portrait} onSetPortrait={(p) => up((d) => { d.identity.portrait = p; })} /></div>
+        {tab === 'notes' && (
+          <div className="sheet-layout">
+            <div className="card stack">
+              <h2><NotebookPen size={18} /> Notes</h2>
+              <TextArea rows={18} value={c.notes} onChange={(v) => up((d) => { d.notes = v; })} placeholder="Notes de session, PNJ, indices…" />
+              <div className="small muted">{MD_HINT}</div>
+            </div>
+            <div className="card stack">
+              <h2><Image size={18} /> Images</h2>
+              <Gallery characterId={id} portrait={c.identity.portrait} onSetPortrait={(p) => up((d) => { d.identity.portrait = p; })} />
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -551,11 +561,6 @@ function ProfileTab({ c, up }: { c: Character; up: Up }) {
               </div>
             )}
           />
-        </div>
-        <div className="card stack">
-          <h2>Notes</h2>
-          <TextArea rows={10} value={c.notes} onChange={(v) => up((d) => { d.notes = v; })} />
-          <div className="small muted">{MD_HINT}</div>
         </div>
       </div>
       {picker && <SrdPicker title="Ajouter un don du SRD" types={['feat']} onClose={() => setPicker(false)} onPick={(e) => up((d) => { d.features.push(srdToFeature(e)); })} />}
