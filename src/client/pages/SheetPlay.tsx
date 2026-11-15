@@ -1,0 +1,418 @@
+import { useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { Bed, BookOpen, Coffee, Dices, Heart, HeartPulse, Minus, Plus, Shield, Skull, Sparkles, Swords, Trash2, Wand2, Backpack, NotebookPen, Star, Zap } from 'lucide-react';
+import { useCharacter } from '../useCharacter';
+import { DiceProvider, DiceTray, ModeSwitch, useDice } from '../dice';
+import type { Character } from '../../shared/schema';
+import { uid } from '../../shared/schema';
+import * as R from '../../shared/rules';
+import { ABILITIES, ABILITY_LABELS, COINS, CONDITIONS, SKILLS } from '../../shared/srd-fr';
+import { Markdown, Modal, Num, Pips, Skeleton, TextArea } from '../ui';
+import { SheetHeader, ToVerifyBanner } from '../components/SheetHeader';
+import { SrdDetail, SrdPicker } from '../components/SrdPicker';
+import { srdToItem } from '../srdToSheet';
+
+type Up = (fn: (c: Character) => Character | void) => void;
+const fm = R.fmtMod;
+
+export default function SheetPlay() {
+  const { id = '' } = useParams();
+  const h = useCharacter(id);
+  if (!h.char) return h.status === 'error' ? <div className="card error">{h.error}</div> : <div className="card"><Skeleton lines={8} /></div>;
+  return (
+    <DiceProvider characterId={id}>
+      <PlayInner id={id} c={h.char} up={h.update} status={h.status} reload={h.reload} force={h.forceSave} />
+    </DiceProvider>
+  );
+}
+
+function PlayInner({ id, c, up, status, reload, force }: { id: string; c: Character; up: Up; status: any; reload: () => void; force: () => void }) {
+  const dice = useDice();
+  const pen = R.exhaustionPenalty(c);
+  const [srdOpen, setSrdOpen] = useState<string | null>(null);
+  const [itemPicker, setItemPicker] = useState(false);
+
+  const check = (label: string, bonus: number) => dice.d20(label, bonus, { penalty: pen });
+
+  return (
+    <div>
+      <SheetHeader id={id} c={c} mode="play" status={status} onForce={force} onReload={reload} />
+      <ToVerifyBanner items={c.toVerify} />
+
+      <div className="sticky-tools row spread no-print">
+        <ModeSwitch />
+        <div className="row">
+          {c.combat.exhaustion > 0 && <span className="chip warn">Épuisement {c.combat.exhaustion} ({pen})</span>}
+          <button className="btn sm" onClick={() => up((d) => R.shortRest(d))} title="Recharge les ressources « repos court »"><Coffee size={16} /> Repos court</button>
+          <button className="btn sm" onClick={() => { if (confirm('Repos long : PV, dés de vie, emplacements et ressources restaurés, épuisement −1. Continuer ?')) up((d) => R.longRest(d)); }}><Bed size={16} /> Repos long</button>
+        </div>
+      </div>
+
+      <div className="sheet-layout three">
+        {/* ---------- Colonne 1 : caractéristiques & compétences ---------- */}
+        <div className="stack" style={{ gap: '1rem' }}>
+          <div className="card stack">
+            <h2><Sparkles size={18} /> Caractéristiques</h2>
+            <div className="abil-grid">
+              {ABILITIES.map((a) => {
+                const m = R.mod(c, a);
+                const prof = c.savingThrows.includes(a);
+                return (
+                  <div key={a} className="stack" style={{ gap: 4, alignItems: 'stretch' }}>
+                    <button className="plate" onClick={() => check(`Test de ${ABILITY_LABELS[a].long}`, m)} title={`Test de ${ABILITY_LABELS[a].long}`}>
+                      <div className="lbl">{ABILITY_LABELS[a].short}</div>
+                      <div className="big">{fm(m)}</div>
+                      <div className="sub">{c.abilities[a]}</div>
+                    </button>
+                    <button className={`save-chip ${prof ? 'on' : ''}`} style={{ justifyContent: 'center' }} onClick={() => check(`Sauvegarde de ${ABILITY_LABELS[a].long}`, R.saveBonus(c, a))} title="Jet de sauvegarde">
+                      JS {fm(R.saveBonus(c, a))}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="card">
+            <h2>Compétences</h2>
+            <ul className="list">
+              {SKILLS.map((s) => {
+                const st = c.skills[s.key]?.prof ?? 0;
+                return (
+                  <li key={s.key} style={{ padding: '0.1rem 0' }}>
+                    <button className="rollable" onClick={() => check(s.label, R.skillBonus(c, s.key))}>
+                      <span className={`pip ${st === 2 ? 'on' : st === 1 ? 'half' : ''}`} style={{ cursor: 'inherit' }} title={['Non maîtrisée', 'Maîtrise', 'Expertise'][st]} />
+                      <span className="grow">{s.label} <span className="muted small">{ABILITY_LABELS[s.ability].short}</span></span>
+                      <span className="bonus">{fm(R.skillBonus(c, s.key))}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="small muted" style={{ marginTop: 6 }}>Perception passive {R.passivePerception(c)}</div>
+          </div>
+          <ProficienciesCard c={c} />
+        </div>
+
+        {/* ---------- Colonne 2 : combat ---------- */}
+        <div className="stack" style={{ gap: '1rem' }}>
+          <div className="stat-strip">
+            <div className="stat" title={c.combat.acNote}><div className="v"><Shield size={16} /> {c.combat.ac}</div><div className="k">Classe d'armure</div></div>
+            <button className="stat" onClick={() => check('Initiative', R.initiative(c))}><div className="v">{fm(R.initiative(c))}</div><div className="k">Initiative</div></button>
+            <div className="stat"><div className="v">{R.speed(c)} m</div><div className="k">Vitesse</div></div>
+            <div className="stat"><div className="v">{fm(R.proficiencyBonus(c))}</div><div className="k">Maîtrise</div></div>
+            <button className={`stat ${c.combat.heroicInspiration ? 'on' : ''}`} onClick={() => up((d) => { d.combat.heroicInspiration = !d.combat.heroicInspiration; })} title="Inspiration héroïque : relancer un dé">
+              <div className="v"><Star size={18} fill={c.combat.heroicInspiration ? 'var(--brass)' : 'none'} /></div><div className="k">Inspiration</div>
+            </button>
+          </div>
+          <HpCard c={c} up={up} />
+          <AttacksCard c={c} />
+          <SpellsCard c={c} up={up} onOpen={setSrdOpen} />
+          <ResourcesCard c={c} up={up} />
+          <ConditionsCard c={c} up={up} />
+        </div>
+
+        {/* ---------- Colonne 3 : inventaire, notes, dés ---------- */}
+        <div className="stack" style={{ gap: '1rem' }}>
+          <div className="card">
+            <h2><Dices size={18} /> Dés</h2>
+            <DiceTray />
+          </div>
+          <InventoryCard c={c} up={up} onSrd={() => setItemPicker(true)} />
+          <FeaturesCard c={c} />
+          <div className="card stack">
+            <h2><NotebookPen size={18} /> Notes</h2>
+            <TextArea rows={8} value={c.notes} onChange={(v) => up((d) => { d.notes = v; })} placeholder="Notes de session, PNJ, indices…" />
+          </div>
+        </div>
+      </div>
+
+      {srdOpen && <Modal title="Règles" onClose={() => setSrdOpen(null)}><SrdDetail id={srdOpen} /></Modal>}
+      {itemPicker && <SrdPicker title="Ajouter un objet" types={['gear', 'tool', 'weapon', 'armor', 'magic-item']} onClose={() => setItemPicker(false)} onPick={(e) => up((d) => { d.inventory.push(srdToItem(e)); })} />}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+function HpCard({ c, up }: { c: Character; up: Up }) {
+  const dice = useDice();
+  const [amt, setAmt] = useState<number | null>(null);
+  const { hpCurrent, hpMax, hpTemp, deathSaves } = c.combat;
+  const pct = Math.max(0, Math.min(100, (hpCurrent / Math.max(1, hpMax)) * 100));
+  const n = amt ?? 0;
+  const conMod = R.mod(c, 'con');
+
+  const spendHitDie = (idx: number) => {
+    const pool = c.combat.hitDice[idx];
+    if (!pool || pool.used >= pool.total) return;
+    const sides = parseInt(pool.die.slice(1), 10);
+    const roll = 1 + Math.floor(Math.random() * sides);
+    const healed = Math.max(0, roll + conMod);
+    up((d) => {
+      d.combat.hitDice[idx].used += 1;
+      return R.applyHealing(d, healed);
+    });
+    dice.damage(`Dé de vie ${pool.die} (+${conMod} CON) → soins`, `${roll}${conMod >= 0 ? '+' : ''}${conMod}`);
+  };
+
+  return (
+    <div className="card stack brass">
+      <div className="card-title">
+        <h2><Heart size={18} /> Points de vie</h2>
+        <span className="mono" style={{ fontSize: '1.5rem' }}>
+          <strong>{hpCurrent}</strong><span className="muted">/{hpMax}</span>
+          {hpTemp > 0 && <span style={{ color: 'var(--teal)' }}> +{hpTemp}</span>}
+        </span>
+      </div>
+      <div className="hp-bar" aria-hidden><span style={{ width: `${pct}%` }} /></div>
+      {hpTemp > 0 && <div className="hp-bar" aria-hidden style={{ height: 6 }}><span className="temp" style={{ width: `${Math.min(100, (hpTemp / Math.max(1, hpMax)) * 100)}%` }} /></div>}
+      {hpCurrent <= hpMax / 2 && hpCurrent > 0 && <span className="chip warn" style={{ alignSelf: 'flex-start' }}>En sang</span>}
+      <div className="row" style={{ flexWrap: 'nowrap' }}>
+        <div style={{ width: 90 }}><Num value={amt} onChange={setAmt} min={0} nullable placeholder="PV" /></div>
+        <button className="btn sm danger" disabled={!n} onClick={() => { up((d) => R.applyDamage(d, n)); setAmt(null); }}><Minus size={16} /> Dégâts</button>
+        <button className="btn sm" disabled={!n} onClick={() => { up((d) => R.applyHealing(d, n)); setAmt(null); }} style={{ color: 'var(--success)', borderColor: 'var(--success)' }}><Plus size={16} /> Soins</button>
+        <button className="btn sm teal" disabled={!n} onClick={() => { up((d) => R.setTempHp(d, n)); setAmt(null); }} title="PV temporaires">Temp.</button>
+      </div>
+      {hpCurrent === 0 && (
+        <div className="banner stack">
+          <strong><Skull size={16} style={{ verticalAlign: '-3px' }} /> Jets de sauvegarde contre la mort</strong>
+          <div className="row small">
+            Réussites <Pips max={3} used={3 - deathSaves.success} onChange={(u) => up((d) => { d.combat.deathSaves.success = 3 - u; })} />
+            Échecs <Pips max={3} used={3 - deathSaves.failure} onChange={(u) => up((d) => { d.combat.deathSaves.failure = 3 - u; })} />
+          </div>
+          <button className="btn primary sm" style={{ alignSelf: 'flex-start' }} onClick={() => {
+            dice.d20('Sauvegarde contre la mort', 0, {
+              mode: 'normal',
+              onResult: (nat) => {
+                const r = R.resolveDeathSave(c, nat);
+                up(() => r.char);
+                return { note: r.outcome };
+              },
+            });
+          }}>Lancer le jet</button>
+        </div>
+      )}
+      {c.combat.hitDice.length > 0 && (
+        <div className="row small">
+          <HeartPulse size={16} /> Dés de vie :
+          {c.combat.hitDice.map((h, i) => (
+            <span key={i} className="row" style={{ gap: 4 }}>
+              <span className="mono">{h.total - h.used}/{h.total}{h.die}</span>
+              <button className="btn sm" disabled={h.used >= h.total} onClick={() => spendHitDie(i)} title="Dépenser un dé de vie (repos court)">Dépenser</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AttacksCard({ c }: { c: Character }) {
+  const dice = useDice();
+  const pen = R.exhaustionPenalty(c);
+  if (!c.attacks.length && R.spellAttack(c) == null) return null;
+  return (
+    <div className="card">
+      <h2><Swords size={18} /> Attaques</h2>
+      <ul className="list">
+        {c.attacks.map((a) => {
+          const hit = R.attackToHit(c, a);
+          const dmg = R.damageExpression(c, a);
+          return (
+            <li key={a.id} className="stack" style={{ gap: 4 }}>
+              <div className="row spread" style={{ flexWrap: 'nowrap' }}>
+                <span className="grow" style={{ minWidth: 0 }}>
+                  <strong>{a.name}</strong>
+                  <span className="small muted" style={{ display: 'block' }}>{[a.range, a.mastery, a.notes].filter(Boolean).join(' · ')}</span>
+                </span>
+                <button className="btn sm mono" onClick={() => dice.d20(`Attaque : ${a.name}`, hit, {
+                  penalty: pen,
+                  onResult: (nat) => ({
+                    action: nat === 20
+                      ? { label: `Dégâts critiques (${dmg})`, run: () => dice.damage(a.name, dmg, true) }
+                      : { label: `Dégâts (${dmg})`, run: () => dice.damage(a.name, dmg) },
+                  }),
+                })}>{fm(hit)}</button>
+                <button className="btn sm mono" onClick={() => dice.damage(`Dégâts : ${a.name}`, dmg)} title="Lancer les dégâts">{dmg} <span className="small">{a.damageType}</span></button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function SpellsCard({ c, up, onOpen }: { c: Character; up: Up; onOpen: (id: string) => void }) {
+  const dice = useDice();
+  const dc = R.spellSaveDC(c);
+  const atk = R.spellAttack(c);
+  const spells = c.spellcasting.spells;
+  if (!spells.length && !c.spellcasting.slots.length) return null;
+  const levels = [...new Set(spells.map((s) => s.level))].sort((a, b) => a - b);
+  return (
+    <div className="card stack">
+      <div className="card-title">
+        <h2><Wand2 size={18} /> Sorts</h2>
+        <span className="row small">
+          {dc != null && <span className="chip">DD {dc}</span>}
+          {atk != null && <button className="chip" onClick={() => dice.d20('Attaque de sort', atk, { penalty: R.exhaustionPenalty(c) })}>Attaque {fm(atk)}</button>}
+        </span>
+      </div>
+      {c.spellcasting.slots.filter((s) => s.max > 0).length > 0 && (
+        <div className="stack" style={{ gap: 4 }}>
+          {c.spellcasting.slots.filter((s) => s.max > 0).map((s) => (
+            <div key={s.level} className="row small">
+              <span style={{ width: 70 }}>Niveau {s.level}</span>
+              <Pips max={s.max} used={s.used} label={`Emplacements de niveau ${s.level}`} onChange={(u) => up((d) => { const t = d.spellcasting.slots.find((x) => x.level === s.level)!; t.used = Math.max(0, Math.min(t.max, u)); })} />
+            </div>
+          ))}
+        </div>
+      )}
+      {levels.map((l) => (
+        <div key={l}>
+          <div className="small muted">{l === 0 ? 'Sorts mineurs' : `Niveau ${l}`}</div>
+          <ul className="list">
+            {spells.filter((s) => s.level === l).map((s) => (
+              <li key={s.id} className="row" style={{ flexWrap: 'nowrap', padding: '0.15rem 0' }}>
+                {l > 0 && (
+                  <input type="checkbox" checked={s.prepared || s.alwaysPrepared} disabled={s.alwaysPrepared} title="Préparé" aria-label={`Préparer ${s.name}`}
+                    onChange={(e) => up((d) => { d.spellcasting.spells.find((x) => x.id === s.id)!.prepared = e.target.checked; })} />
+                )}
+                <span className="grow" style={{ opacity: l > 0 && !s.prepared && !s.alwaysPrepared ? 0.6 : 1 }}>{s.name} {s.notes && <span className="small muted">— {s.notes}</span>}</span>
+                {s.srdName && <button className="btn ghost sm icon" onClick={() => onOpen(s.srdName)} aria-label={`Description de ${s.name}`} title="Description"><BookOpen size={15} /></button>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ResourcesCard({ c, up }: { c: Character; up: Up }) {
+  if (!c.resources.length) return null;
+  return (
+    <div className="card">
+      <h2><Zap size={18} /> Ressources</h2>
+      <ul className="list">
+        {c.resources.map((r) => (
+          <li key={r.id} className="row spread">
+            <span>{r.name} <span className="small muted">({{ short: 'repos court', long: 'repos long', none: 'manuel' }[r.recharge]})</span></span>
+            {r.max <= 12 ? (
+              <Pips max={r.max} used={r.used} onChange={(u) => up((d) => { d.resources.find((x) => x.id === r.id)!.used = u; })} />
+            ) : (
+              <span className="row" style={{ gap: 4 }}>
+                <button className="btn sm icon" onClick={() => up((d) => { const x = d.resources.find((y) => y.id === r.id)!; x.used = Math.min(x.max, x.used + 1); })} aria-label="Dépenser"><Minus size={14} /></button>
+                <span className="mono">{r.max - r.used}/{r.max}</span>
+                <button className="btn sm icon" onClick={() => up((d) => { const x = d.resources.find((y) => y.id === r.id)!; x.used = Math.max(0, x.used - 1); })} aria-label="Récupérer"><Plus size={14} /></button>
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ConditionsCard({ c, up }: { c: Character; up: Up }) {
+  return (
+    <div className="card stack">
+      <h2>États</h2>
+      <div className="row">
+        {CONDITIONS.map((k) => (
+          <button key={k} className={`chip ${c.combat.conditions.includes(k) ? 'on' : ''}`} aria-pressed={c.combat.conditions.includes(k)} onClick={() => up((d) => {
+            d.combat.conditions = d.combat.conditions.includes(k) ? d.combat.conditions.filter((x) => x !== k) : [...d.combat.conditions, k];
+          })}>{k}</button>
+        ))}
+      </div>
+      <div className="row small">
+        Épuisement
+        <button className="btn sm icon" onClick={() => up((d) => { d.combat.exhaustion = Math.max(0, d.combat.exhaustion - 1); })} aria-label="Réduire l'épuisement"><Minus size={14} /></button>
+        <span className="mono">{c.combat.exhaustion}/6</span>
+        <button className="btn sm icon" onClick={() => up((d) => { d.combat.exhaustion = Math.min(6, d.combat.exhaustion + 1); })} aria-label="Augmenter l'épuisement"><Plus size={14} /></button>
+        {c.combat.exhaustion >= 6 && <strong style={{ color: 'var(--danger)' }}>Mort</strong>}
+      </div>
+    </div>
+  );
+}
+
+function InventoryCard({ c, up, onSrd }: { c: Character; up: Up; onSrd: () => void }) {
+  const [name, setName] = useState('');
+  const setItem = (id: string, fn: (i: Character['inventory'][number]) => void) => up((d) => { const i = d.inventory.find((x) => x.id === id); if (i) fn(i); });
+  return (
+    <div className="card stack">
+      <div className="card-title">
+        <h2><Backpack size={18} /> Inventaire</h2>
+        <button className="btn sm" onClick={onSrd}><BookOpen size={15} /> SRD</button>
+      </div>
+      <div className="grid g6" style={{ gap: 6 }}>
+        {COINS.map((k) => (
+          <label key={k.key} className="field" style={{ textAlign: 'center' }} title={k.long}>
+            <span>{k.label}</span>
+            <Num value={c.coins[k.key]} min={0} onChange={(v) => up((d) => { d.coins[k.key] = Math.max(0, v ?? 0); })} />
+          </label>
+        ))}
+      </div>
+      <ul className="list">
+        {c.inventory.map((i) => (
+          <li key={i.id} className="row" style={{ flexWrap: 'nowrap', gap: 4 }}>
+            <input type="checkbox" checked={i.equipped} onChange={(e) => setItem(i.id, (x) => { x.equipped = e.target.checked; })} title="Équipé" aria-label={`Équiper ${i.name}`} />
+            <span className="grow" style={{ minWidth: 0 }}>
+              {i.name}{i.attuned && <span className="chip" style={{ marginLeft: 4 }}>harmonisé</span>}
+              {i.notes && <span className="small muted" style={{ display: 'block' }}>{i.notes}</span>}
+            </span>
+            <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty = Math.max(0, x.qty - 1); })} aria-label="Retirer un"><Minus size={14} /></button>
+            <span className="mono" style={{ minWidth: 24, textAlign: 'center' }}>{i.qty}</span>
+            <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty += 1; })} aria-label="Ajouter un"><Plus size={14} /></button>
+            <button className="btn ghost sm icon" style={{ color: 'var(--danger)' }} onClick={() => { if (confirm(`Retirer « ${i.name} » de l'inventaire ?`)) up((d) => { d.inventory = d.inventory.filter((x) => x.id !== i.id); }); }} aria-label="Supprimer"><Trash2 size={14} /></button>
+          </li>
+        ))}
+      </ul>
+      <form className="row" style={{ flexWrap: 'nowrap' }} onSubmit={(e) => {
+        e.preventDefault();
+        const t = name.trim();
+        if (!t) return;
+        const m = t.match(/^(\d+)\s+(.*)$/);
+        up((d) => { d.inventory.push({ id: uid(), name: m ? m[2] : t, qty: m ? parseInt(m[1], 10) : 1, weight: 0, equipped: false, attuned: false, notes: '' }); });
+        setName('');
+      }}>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ajouter un objet (ex. 3 torches)" />
+        <button className="btn sm" type="submit" aria-label="Ajouter"><Plus size={16} /></button>
+      </form>
+      <div className="small muted">Charge {R.carriedWeight(c)} / {R.carryingCapacity(c)} kg</div>
+    </div>
+  );
+}
+
+function FeaturesCard({ c }: { c: Character }) {
+  if (!c.features.length) return null;
+  return (
+    <div className="card">
+      <h2>Aptitudes</h2>
+      <ul className="list">
+        {c.features.map((f) => (
+          <li key={f.id}>
+            <details>
+              <summary style={{ cursor: 'pointer' }}>{f.name} {f.source && <span className="small muted">— {f.source}</span>}</summary>
+              {f.description && <div className="small" style={{ marginTop: 4 }}><Markdown text={f.description} /></div>}
+            </details>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ProficienciesCard({ c }: { c: Character }) {
+  const p = c.proficiencies;
+  const rows: [string, string[]][] = [['Armures', p.armor], ['Armes', p.weapons], ['Outils', p.tools], ['Langues', p.languages]];
+  if (rows.every(([, v]) => !v.length)) return null;
+  return (
+    <div className="card small">
+      <h3>Maîtrises & langues</h3>
+      {rows.filter(([, v]) => v.length).map(([k, v]) => (
+        <div key={k}><span className="muted">{k} :</span> {v.join(', ')}</div>
+      ))}
+    </div>
+  );
+}

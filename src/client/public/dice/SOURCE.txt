@@ -1,0 +1,3 @@
+Dés 3D : https://github.com/sarahRosannaBusch/dice (commit 76fe0a8, licence MIT, voir LICENSE.txt).
+Dérivé du travail de Anton Natarov (Teal). three.js r73, cannon.js. Son : nicovideo.jp via chukwumaijem/roll-a-die.
+Modifications Grimoire : chemin du son configurable (DICE.soundUrl), DICE.muted, DICE.vars exposé, suppression du handler resize défectueux.

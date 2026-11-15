@@ -1,0 +1,53 @@
+{
+  "name": "grimoire-dd-sheets",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:server": "tsx watch src/server/index.ts",
+    "dev:client": "vite",
+    "build:srd": "tsx src/server/srd/build-index.ts",
+    "build:client": "vite build",
+    "build:server": "esbuild src/server/index.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/server.js && esbuild src/server/backup.ts --bundle --platform=node --format=esm --packages=external --outfile=dist/backup.js",
+    "build": "npm run build:srd && npm run build:client && npm run build:server",
+    "start": "node dist/server.js",
+    "backup": "node dist/backup.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cookie": "^11.1.5",
+    "@fastify/multipart": "^10.1.8",
+    "@fastify/rate-limit": "^11.2.2",
+    "@fastify/static": "^10.1.11",
+    "@node-rs/argon2": "^2.2.2",
+    "better-sqlite3": "^13.2.0",
+    "fastify": "^5.12.8",
+    "heic-convert": "^2.1.0",
+    "sharp": "^0.35.5",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@fontsource/im-fell-english": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.3.0",
+    "esbuild": "^0.28.2",
+    "lucide-react": "^1.73.0",
+    "pdfjs-dist": "^4.10.38",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@13.2.0": true,
+    "esbuild@0.28.2": true
+  }
+}

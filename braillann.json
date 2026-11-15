@@ -1,0 +1,90 @@
+{
+  "personnage": {
+    "nom": "Braillânn",
+    "joueur": "Simon",
+    "espece": "Humain",
+    "classe": "Barbare",
+    "sous_classe": "Voie du Berserker",
+    "niveau": 4,
+    "historique": "Sauvageon",
+    "alignement": "Chaotique Bon",
+    "points_experience": 4965
+  },
+  "caracteristiques": {
+    "force": { "valeur": 17, "modificateur_note": 4 },
+    "dexterite": { "valeur": 13, "modificateur": 1 },
+    "constitution": { "valeur": 15, "modificateur": 2 },
+    "intelligence": { "valeur": 11, "modificateur": 0 },
+    "sagesse": { "valeur": 14, "modificateur": 2 },
+    "charisme": { "valeur": 10, "modificateur": 0 }
+  },
+  "bonus_maitrise": 2,
+  "inspiration": 4,
+  "jets_de_sauvegarde_maitrises": ["Force", "Constitution"],
+  "competences_maitrisees": ["Athlétisme", "Intimidation", "Perception", "Survie"],
+  "perception_passive_notee": 12,
+  "combat": {
+    "classe_armure": 17,
+    "initiative": 1,
+    "vitesse_m": 9,
+    "points_de_vie_max": 42,
+    "des_de_vie": { "nombre": 4, "type": "d12" }
+  },
+  "attaques": [
+    { "nom": "Subtilité", "bonus_attaque": "3+2", "degats": "1d12", "type": "tranchant" },
+    { "nom": "Diplomatie", "bonus_attaque": "3+2", "degats": "1d6", "type": "contondant" },
+    { "nom": "Javeline", "bonus_attaque": "1+2", "degats": "1d6", "type": "perforant" }
+  ],
+  "capacites": [
+    {
+      "nom": "Rage",
+      "utilisations": 2,
+      "effets": ["Avantage aux tests de Force", "+2 aux dégâts (noté aussi sur l'attaque sur la fiche)"]
+    },
+    { "nom": "Défense sans armure" },
+    { "nom": "Tout le monde n'abandonne pas comme papa", "note": "transcription incertaine" }
+  ],
+  "maitrises": {
+    "armures": ["Légères", "Intermédiaires"],
+    "armes": ["Armes courantes", "Armes de guerre"],
+    "outils_instruments": ["Flûte"],
+    "langues": ["Impérial", "Nain"]
+  },
+  "monnaie": { "pc": 1, "pa": 5, "pe": 0, "po": 128, "pp": 0 },
+  "equipement": [
+    "4 javelines",
+    "Paquetage d'explorateur",
+    "Piège à mâchoires",
+    "Amulette à nager (transcription incertaine)",
+    "Armure en cuir (11 + Dex)",
+    "1 éclat d'obsidienne",
+    "1 carte (mine ?)",
+    "1 clou en super fer forgé",
+    "Serpe gravée (25 po)",
+    "Cape de mousse (10-60 po)",
+    "1 tête de fée",
+    "1 tête d'humaine nécrologue",
+    "1 cimeterre (25 po)"
+  ],
+  "personnalite": {
+    "traits": ["Forestier", "Soif de voyage"],
+    "ideal": "Chacun de nous est chargé de contribuer au bonheur de tous",
+    "lien": "Ma colère s'abattra sur les nécromants qui ont détruit ma famille",
+    "defaut": "Répond au défi par la violence"
+  },
+  "allies": [
+    { "nom": "Ella", "classe": "Barde" },
+    { "nom": "Julien", "classe": "Clerc" }
+  ],
+  "notes_diverses": ["Squelette : 10 PV, CA 13", "Yondela Torm", "Owléa"],
+  "a_verifier": [
+    "Force 17 donne +3, pas +4 (les attaques utilisent +3) ; 18 si tu as pris l'amélioration de caractéristique du niveau 4",
+    "Perception passive : 14 attendu (10 + Sag 2 + maîtrise 2), la fiche indique 12",
+    "Rage : 3 utilisations au niveau 4, la fiche indique 2",
+    "Rage : le bonus +2 s'applique aux dégâts seulement, pas au jet d'attaque",
+    "CA 17 : Défense sans armure donne 13 (10 + Dex 1 + Con 2), armure de cuir 12 ; source des points restants à préciser (bouclier ?)",
+    "Javeline : bonus 1+2 utilise la Dex, alors qu'elle se lance normalement avec la Force (+3 ou +4)",
+    "Sauvageon (Outlander 2014) n'existe ni dans le SRD 5.2 ni dans le Manuel des Joueurs 2024 : à saisir à la main ou à remplacer par un historique 2024",
+    "Plusieurs objets de la page Équipement semblent barrés : à confirmer"
+  ]
+}
