@@ -127,7 +127,6 @@ function IdentityTab({ c, up }: { c: Character; up: Up }) {
 
 // ---------------------------------------------------------------------------
 function StatsTab({ c, up }: { c: Character; up: Up }) {
-  const pb = R.proficiencyBonus(c);
   const classSaves = c.classes[0] ? findClass(c.classes[0].name)?.saves : undefined;
   return (
     <div className="sheet-layout">
@@ -202,7 +201,6 @@ function StatsTab({ c, up }: { c: Character; up: Up }) {
             })}
           </tbody>
         </table>
-        <div className="small muted" style={{ marginTop: 8 }}>Perception passive : {R.passivePerception(c)} · Bonus de maîtrise {fm(pb)}</div>
       </div>
     </div>
   );
