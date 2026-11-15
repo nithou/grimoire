@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { X, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import { uid } from '../shared/schema';
+import { mdToHtml } from '../shared/markdown';
 
 export function Field({ label, children, className = '' }: { label: ReactNode; children: ReactNode; className?: string }) {
   return (
@@ -171,62 +172,38 @@ export function ListEditor<T extends { id: string }>({ items, onChange, render, 
   );
 }
 
-// ---------- Mini rendu markdown (sûr : tout est échappé) ----------
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const inline = (s: string) =>
-  esc(s)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/(^|[\s(>])_(.+?)_(?=[\s.,;:)!?<]|$)/g, '$1<em>$2</em>')
-    .replace(/(^|[\s(>])\*(.+?)\*(?=[\s.,;:)!?<]|$)/g, '$1<em>$2</em>');
+// ---------- Markdown ----------
+export { mdToHtml };
 
-export function mdToHtml(md: string): string {
-  const lines = md.split('\n');
-  const out: string[] = [];
-  let para: string[] = [];
-  const flush = () => {
-    if (para.length) out.push(`<p>${para.map(inline).join('<br/>')}</p>`);
-    para = [];
-  };
-  for (let i = 0; i < lines.length; i++) {
-    const l = lines[i];
-    const t = l.trim();
-    if (!t) { flush(); continue; }
-    const h = t.match(/^(#{1,6})\s+(.*)$/);
-    if (h) { flush(); const lv = Math.min(6, Math.max(4, h[1].length)); out.push(`<h${lv}>${inline(h[2])}</h${lv}>`); continue; }
-    if (t.startsWith('|')) {
-      flush();
-      const rows: string[] = [];
-      let first = true;
-      while (i < lines.length && lines[i].trim().startsWith('|')) {
-        const cells = lines[i].trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
-        if (!cells.every((c) => /^:?-+:?$/.test(c))) {
-          const tag = first ? 'th' : 'td';
-          rows.push(`<tr>${cells.map((c) => `<${tag}>${inline(c)}</${tag}>`).join('')}</tr>`);
-          first = false;
-        }
-        i++;
-      }
-      i--;
-      out.push(`<table>${rows.join('')}</table>`);
-      continue;
-    }
-    if (t.startsWith('>')) { flush(); out.push(`<blockquote>${inline(t.replace(/^>\s?/, ''))}</blockquote>`); continue; }
-    if (/^[-*]\s+/.test(t)) {
-      flush();
-      const items: string[] = [];
-      while (i < lines.length && /^[-*]\s+/.test(lines[i].trim())) { items.push(`<li>${inline(lines[i].trim().replace(/^[-*]\s+/, ''))}</li>`); i++; }
-      i--;
-      out.push(`<ul>${items.join('')}</ul>`);
-      continue;
-    }
-    para.push(t);
-  }
-  flush();
-  return out.join('\n');
+export function Markdown({ text, compact = false }: { text: string; compact?: boolean }) {
+  return <div className={`md ${compact ? 'compact' : ''}`} dangerouslySetInnerHTML={{ __html: mdToHtml(text) }} />;
 }
 
-export function Markdown({ text }: { text: string }) {
-  return <div className="md" dangerouslySetInnerHTML={{ __html: mdToHtml(text) }} />;
+/** Rappel de la syntaxe Markdown prise en charge. */
+export const MD_HINT = 'Markdown : **gras**, *italique*, - liste';
+
+/** Note affichée mise en forme, modifiable d'un clic (texte brut Markdown). */
+export function MarkdownNote({ value, onChange, rows = 10, placeholder }: { value: string; onChange: (v: string) => void; rows?: number; placeholder?: string }) {
+  const [editing, setEditing] = useState(!value.trim());
+  if (editing) {
+    return (
+      <div className="stack" style={{ gap: 4 }}>
+        <textarea autoFocus={!!value} rows={rows} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} onBlur={() => value.trim() && setEditing(false)} />
+        <div className="row spread small muted">
+          <span>{MD_HINT}</span>
+          {value.trim() && <button className="btn sm" onMouseDown={(e) => e.preventDefault()} onClick={() => setEditing(false)}>Aperçu</button>}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="stack" style={{ gap: 4 }}>
+      <div className="md-note" role="button" tabIndex={0} title="Double-cliquer pour modifier" onDoubleClick={() => setEditing(true)} onKeyDown={(e) => e.key === 'Enter' && setEditing(true)}>
+        <Markdown text={value} />
+      </div>
+      <button className="btn sm" style={{ alignSelf: 'flex-start' }} onClick={() => setEditing(true)}>Modifier</button>
+    </div>
+  );
 }
 
 export function Skeleton({ lines = 3 }: { lines?: number }) {

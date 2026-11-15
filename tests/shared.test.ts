@@ -298,3 +298,16 @@ describe('Armes équipées et types d’aptitudes', () => {
     expect(c.features.map((f) => f.kind)).toEqual(['other', 'bonus', 'other']);
   });
 });
+
+describe('Markdown des notes', () => {
+  it('gras, italique, échappement et listes', async () => {
+    const { mdToHtml } = await import('../src/shared/markdown');
+    expect(mdToHtml('Un **coup** très *rapide*.')).toBe('<p>Un <strong>coup</strong> très <em>rapide</em>.</p>');
+    expect(mdToHtml("L'*arme* et « _sort_ »")).toBe("<p>L'<em>arme</em> et « <em>sort</em> »</p>");
+    expect(mdToHtml('***les deux***')).toBe('<p><strong><em>les deux</em></strong></p>');
+    expect(mdToHtml('2 * 3 * 4 et a*b*c')).toBe('<p>2 * 3 * 4 et a*b*c</p>');
+    expect(mdToHtml('<img src=x onerror=alert(1)> **x**')).toBe('<p>&lt;img src=x onerror=alert(1)&gt; <strong>x</strong></p>');
+    expect(mdToHtml('a\nb')).toBe('<p>a<br/>b</p>');
+    expect(mdToHtml('- *a*\n- **b**')).toBe('<ul><li><em>a</em></li><li><strong>b</strong></li></ul>');
+  });
+});

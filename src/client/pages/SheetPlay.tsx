@@ -8,7 +8,7 @@ import type { Character } from '../../shared/schema';
 import { uid, FEATURE_KINDS } from '../../shared/schema';
 import * as R from '../../shared/rules';
 import { ABILITIES, ABILITY_LABELS, COINS, CONDITIONS, SKILLS, FEATURE_KIND_LABELS } from '../../shared/srd-fr';
-import { Markdown, Modal, Num, Pips, Skeleton, Tabs, TextArea } from '../ui';
+import { Markdown, MarkdownNote, Modal, Num, Pips, Skeleton, Tabs } from '../ui';
 import { Gallery } from '../components/Gallery';
 import { SheetHeader, ToVerifyBanner } from '../components/SheetHeader';
 import { SrdDetail, SrdPicker } from '../components/SrdPicker';
@@ -174,7 +174,7 @@ function PlayInner({ id, c, up, status, reload, force, role, owner }: { id: stri
         <div className="sheet-layout fade-in">
           <div className="card stack">
             <h2><NotebookPen size={18} /> Notes</h2>
-            <TextArea rows={18} value={c.notes} onChange={(v) => up((d) => { d.notes = v; })} placeholder="Notes de session, PNJ, indices…" />
+            <MarkdownNote rows={18} value={c.notes} onChange={(v) => up((d) => { d.notes = v; })} placeholder="Notes de session, PNJ, indices… (**gras**, *italique*)" />
           </div>
           <div className="card stack">
             <h2><Images size={18} /> Images</h2>
@@ -265,13 +265,13 @@ function PersonalityCard({ c }: { c: Character }) {
       {rows.filter(([, v]) => v.trim()).map(([k, v]) => (
         <div key={k}>
           <div className="field-label">{k}</div>
-          <div style={{ whiteSpace: 'pre-wrap' }}>{v}</div>
+          <Markdown compact text={v} />
         </div>
       ))}
       {p.backstory.trim() && (
         <details>
           <summary style={{ cursor: 'pointer' }} className="field-label">Histoire</summary>
-          <div style={{ whiteSpace: 'pre-wrap', marginTop: 4 }}>{p.backstory}</div>
+          <div style={{ marginTop: 4 }}><Markdown compact text={p.backstory} /></div>
         </details>
       )}
     </div>
@@ -369,7 +369,7 @@ function AttacksCard({ c, up }: { c: Character; up: Up }) {
                 })}>{fm(hit)}</button>
                 <button className="btn sm mono" onClick={() => dice.damage(`Dégâts : ${a.name}`, dmg)} title="Lancer les dégâts">{dmg} <span className="small">{a.damageType}</span></button>
               </div>
-              {a.notes && <div className="attack-notes">{a.notes}</div>}
+              {a.notes && <div className="attack-notes"><Markdown compact text={a.notes} /></div>}
             </li>
           );
         })}
@@ -435,7 +435,7 @@ function ResourcesCard({ c, up }: { c: Character; up: Up }) {
           <li key={r.id} className="row spread" style={{ alignItems: 'flex-start' }}>
             <span className="grow" style={{ minWidth: 0 }}>
               {r.name} <span className="small muted">({{ short: 'repos court', long: 'repos long', none: 'manuel' }[r.recharge]})</span>
-              {r.description && <span className="small muted" style={{ display: 'block', whiteSpace: 'pre-wrap' }}>{r.description}</span>}
+              {r.description && <div className="small muted"><Markdown compact text={r.description} /></div>}
             </span>
             {r.max <= 12 ? (
               <Pips max={r.max} used={r.used} onChange={(u) => up((d) => { d.resources.find((x) => x.id === r.id)!.used = u; })} />
@@ -568,7 +568,7 @@ function ContainerCard({ c, up, box, onSrd }: { c: Character; up: Up; box: { id:
               <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty += 1; })} aria-label="Ajouter un"><Plus size={14} /></button>
               <button className="btn ghost sm icon" style={{ color: 'var(--danger)' }} onClick={() => { if (confirm(`Retirer « ${i.name} » de l'inventaire ?`)) up((d) => { d.inventory = d.inventory.filter((x) => x.id !== i.id); }); }} aria-label="Supprimer"><Trash2 size={14} /></button>
             </div>
-            {i.notes && <div className="inv-desc">{i.notes}</div>}
+            {i.notes && <div className="inv-desc"><Markdown compact text={i.notes} /></div>}
           </li>
         ))}
       </ul>

@@ -11,7 +11,9 @@ import {
   FEATURE_KIND_LABELS, ABILITIES, ABILITY_LABELS, ALIGNMENTS, BACKGROUNDS, CLASSES, CONDITIONS, DAMAGE_TYPES, SKILLS, SPECIES, WEAPON_MASTERIES, findClass, COINS,
 } from '../../shared/srd-fr';
 import * as R from '../../shared/rules';
-import { DataList, Field, ListEditor, Num, Select, Skeleton, Tabs, TagInput, Text, TextArea } from '../ui';
+import { DataList, Field, ListEditor, MD_HINT, Num, Select, Skeleton, Tabs, TagInput, Text, TextArea } from '../ui';
+
+const MdHint = () => <span className="md-hint" title={MD_HINT}>· **gras** *italique*</span>;
 import { SheetHeader, ToVerifyBanner } from '../components/SheetHeader';
 import { SrdPicker } from '../components/SrdPicker';
 import { Gallery } from '../components/Gallery';
@@ -302,7 +304,7 @@ function CombatTab({ c, up }: { c: Character; up: Up }) {
                   <Field label="Portée"><Text value={a.range} onChange={(v) => set({ range: v })} /></Field>
                   <Field label="Nombre (armes de jet, javelines…)"><Num nullable placeholder="—" value={a.count} min={0} onChange={(v) => set({ count: v == null ? null : Math.max(0, v) })} /></Field>
                 </div>
-                <Field label="Notes (propriétés, effets, conditions…)"><TextArea rows={3} value={a.notes} onChange={(v) => set({ notes: v })} /></Field>
+                <Field label={<>Notes (propriétés, effets, conditions…) <MdHint /></>}><TextArea rows={3} value={a.notes} onChange={(v) => set({ notes: v })} /></Field>
                 <div className="row small">
                   <label className="row"><input type="checkbox" checked={a.equipped} onChange={(e) => set({ equipped: e.target.checked })} /> Équipée</label>
                   <label className="row"><input type="checkbox" checked={a.proficient} onChange={(e) => set({ proficient: e.target.checked })} /> Maîtrisée</label>
@@ -340,7 +342,7 @@ function ResourcesCard({ c, up }: { c: Character; up: Up }) {
               <Field label="Dépensées"><Num value={r.used} min={0} onChange={(v) => set({ used: v ?? 0 })} /></Field>
               <Field label="Recharge"><Select value={r.recharge} onChange={(v) => set({ recharge: v })} options={[{ value: 'short', label: 'Repos court' }, { value: 'long', label: 'Repos long' }, { value: 'none', label: 'Manuelle' }]} /></Field>
             </div>
-            <Field label="Description (effets, conditions d'usage…)"><TextArea rows={2} value={r.description} onChange={(v) => set({ description: v })} /></Field>
+            <Field label={<>Description (effets, conditions d'usage…) <MdHint /></>}><TextArea rows={2} value={r.description} onChange={(v) => set({ description: v })} /></Field>
           </div>
         )}
       />
@@ -445,7 +447,7 @@ function EditContainer({ c, up, box, onSrd }: { c: Character; up: Up; box: { id:
               <Field label="Poids unitaire (kg)"><Num value={it.weight} min={0} step={0.1} onChange={(v) => set({ weight: v ?? 0 })} /></Field>
               <Field label="Valeur"><Text value={it.value} placeholder="ex. 25 po" onChange={(v) => set({ value: v })} /></Field>
             </div>
-            <Field label="Description"><TextArea rows={2} value={it.notes} onChange={(v) => set({ notes: v })} /></Field>
+            <Field label={<>Description <MdHint /></>}><TextArea rows={2} value={it.notes} onChange={(v) => set({ notes: v })} /></Field>
             <div className="row small">
               <label className="row"><input type="checkbox" checked={it.equipped} onChange={(e) => set({ equipped: e.target.checked })} /> Équipé</label>
               <label className="row"><input type="checkbox" checked={it.attuned} onChange={(e) => set({ attuned: e.target.checked })} /> Harmonisé</label>
@@ -510,11 +512,11 @@ function ProfileTab({ c, up }: { c: Character; up: Up }) {
       <div className="stack" style={{ gap: '1rem' }}>
         <div className="card stack">
           <h2>Personnalité</h2>
-          <Field label="Traits"><TextArea rows={2} value={c.personality.traits} onChange={(v) => setP('traits', v)} /></Field>
+          <Field label={<>Traits <MdHint /></>}><TextArea rows={2} value={c.personality.traits} onChange={(v) => setP('traits', v)} /></Field>
           <Field label="Idéaux"><TextArea rows={2} value={c.personality.ideals} onChange={(v) => setP('ideals', v)} /></Field>
           <Field label="Liens"><TextArea rows={2} value={c.personality.bonds} onChange={(v) => setP('bonds', v)} /></Field>
           <Field label="Défauts"><TextArea rows={2} value={c.personality.flaws} onChange={(v) => setP('flaws', v)} /></Field>
-          <Field label="Histoire"><TextArea rows={6} value={c.personality.backstory} onChange={(v) => setP('backstory', v)} /></Field>
+          <Field label={<>Histoire <MdHint /></>}><TextArea rows={6} value={c.personality.backstory} onChange={(v) => setP('backstory', v)} /></Field>
         </div>
         <div className="card stack">
           <h2>Alliés & organisations</h2>
@@ -547,7 +549,7 @@ function ProfileTab({ c, up }: { c: Character; up: Up }) {
                   </Field>
                   <Field label="Source"><Text value={f.source} onChange={(v) => set({ source: v })} placeholder="Classe, espèce, don…" /></Field>
                 </div>
-                <Field label="Description"><TextArea rows={3} value={f.description} onChange={(v) => set({ description: v })} /></Field>
+                <Field label={<>Description <MdHint /></>}><TextArea rows={3} value={f.description} onChange={(v) => set({ description: v })} /></Field>
               </div>
             )}
           />
@@ -555,6 +557,7 @@ function ProfileTab({ c, up }: { c: Character; up: Up }) {
         <div className="card stack">
           <h2>Notes</h2>
           <TextArea rows={10} value={c.notes} onChange={(v) => up((d) => { d.notes = v; })} />
+          <div className="small muted">{MD_HINT}</div>
         </div>
       </div>
       {picker && <SrdPicker title="Ajouter un don du SRD" types={['feat']} onClose={() => setPicker(false)} onPick={(e) => up((d) => { d.features.push(srdToFeature(e)); })} />}

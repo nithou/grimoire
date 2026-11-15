@@ -490,3 +490,12 @@ ul.log-changes li { margin: 0.1rem 0; }
   button.rollable { padding: 0.4rem 0.35rem; }
   .pip { width: 1.15rem; height: 1.15rem; }
 }
+
+/* Notes en Markdown */
+.md.compact p { margin: 0 0 0.3rem; }
+.md.compact p:last-child, .md.compact ul:last-child { margin-bottom: 0; }
+.md em { color: inherit; }
+.md-note { background: var(--surface-sunk); border: 1px solid var(--border); border-radius: var(--r); padding: 0.6rem 0.8rem; min-height: 6rem; cursor: text; }
+.md-note:hover { border-color: var(--border-strong); }
+.md-hint { font-family: var(--mono); font-size: 0.72rem; color: var(--text-muted); opacity: 0.8; text-transform: none; letter-spacing: 0; }
+.inv-desc, .attack-notes { white-space: normal; }
