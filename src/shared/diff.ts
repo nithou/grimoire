@@ -25,9 +25,9 @@ for (const c of COINS) LABELS[`coins.${c.key}`] = c.label;
 /** Collections d'objets identifiés : libellé de la collection, nom d'un élément et champs suivis. */
 const COLLECTIONS: Record<string, { label: string; name: (x: any) => string; fields: Record<string, string> }> = {
   inventory: { label: 'Inventaire', name: (x) => x.name || 'objet', fields: { qty: 'quantité', name: 'nom', equipped: 'équipé', attuned: 'harmonisé', value: 'valeur', notes: 'description', weight: 'poids', containerId: 'contenant' } },
-  attacks: { label: 'Attaques', name: (x) => x.name || 'attaque', fields: { name: 'nom', count: 'nombre', damage: 'dégâts', toHitBonus: 'bonus au toucher', ability: 'caractéristique' } },
+  attacks: { label: 'Attaques', name: (x) => x.name || 'attaque', fields: { name: 'nom', count: 'nombre', equipped: 'équipée', damage: 'dégâts', toHitBonus: 'bonus au toucher', ability: 'caractéristique', notes: 'notes' } },
   resources: { label: 'Ressources', name: (x) => x.name || 'ressource', fields: { used: 'dépensées', max: 'maximum', name: 'nom', description: 'description' } },
-  features: { label: 'Aptitudes', name: (x) => x.name || 'aptitude', fields: { name: 'nom', description: 'description', source: 'source' } },
+  features: { label: 'Aptitudes', name: (x) => x.name || 'aptitude', fields: { name: 'nom', kind: 'type', description: 'description', source: 'source' } },
   classes: { label: 'Classes', name: (x) => x.name || 'classe', fields: { level: 'niveau', subclass: 'sous-classe', name: 'nom' } },
   allies: { label: 'Alliés', name: (x) => x.name || 'allié', fields: { name: 'nom', notes: 'notes' } },
   containers: { label: 'Contenants', name: (x) => x.name || 'contenant', fields: { name: 'nom' } },

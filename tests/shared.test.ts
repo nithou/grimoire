@@ -290,3 +290,11 @@ describe('Journal des modifications (diff)', () => {
     expect(m2[0]).toMatchObject({ before: '30', after: '20' });
   });
 });
+
+describe('Armes équipées et types d’aptitudes', () => {
+  it('valeurs par défaut rétrocompatibles', () => {
+    const c = CharacterSchema.parse({ attacks: [{ name: 'Dague' }], features: [{ name: 'Rage' }, { name: 'Attaque sauvage', kind: 'bonus' }, { name: 'X', kind: 'n/a' }] });
+    expect(c.attacks[0].equipped).toBe(true);
+    expect(c.features.map((f) => f.kind)).toEqual(['other', 'bonus', 'other']);
+  });
+});

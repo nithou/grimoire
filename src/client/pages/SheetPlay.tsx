@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Bed, BookOpen, Coffee, Dices, Heart, HeartPulse, Minus, Plus, Shield, Skull, Sparkles, Swords, Trash2, Wand2, Backpack, NotebookPen, Star, Zap, LayoutGrid, Drama, Images, Pencil, History } from 'lucide-react';
+import { Bed, BookOpen, Coffee, Dices, Heart, HeartPulse, Minus, Plus, Shield, Skull, Sparkles, Swords, Trash2, Wand2, Backpack, NotebookPen, Star, Zap, LayoutGrid, Drama, Images, Pencil, History, Eye } from 'lucide-react';
 import { CharacterLog } from '../components/CharacterLog';
 import { useCharacter } from '../useCharacter';
 import { DiceProvider, DiceTray, ModeSwitch, useDice } from '../dice';
 import type { Character } from '../../shared/schema';
-import { uid } from '../../shared/schema';
+import { uid, FEATURE_KINDS } from '../../shared/schema';
 import * as R from '../../shared/rules';
-import { ABILITIES, ABILITY_LABELS, COINS, CONDITIONS, SKILLS } from '../../shared/srd-fr';
+import { ABILITIES, ABILITY_LABELS, COINS, CONDITIONS, SKILLS, FEATURE_KIND_LABELS } from '../../shared/srd-fr';
 import { Markdown, Modal, Num, Pips, Skeleton, Tabs, TextArea } from '../ui';
 import { Gallery } from '../components/Gallery';
 import { SheetHeader, ToVerifyBanner } from '../components/SheetHeader';
@@ -102,6 +102,15 @@ function PlayInner({ id, c, up, status, reload, force, role, owner }: { id: stri
                 })}
               </div>
             </div>
+            <div className="card row spread" style={{ padding: '0.7rem 1rem' }} title="10 + bonus de Perception">
+              <span className="stack" style={{ gap: 2 }}>
+                <span className="field-label row" style={{ gap: 6 }}><Eye size={15} style={{ color: 'var(--accent)' }} /> Perception passive</span>
+                <span className="small muted">
+                  {c.overrides.passivePerception != null && pp !== ppAuto ? `Valeur forcée (calcul : ${ppAuto})` : `10 + Perception (${fm(R.skillBonus(c, 'perception'))})`}
+                </span>
+              </span>
+              <span className="pp-box"><span className="big-num">{pp}</span></span>
+            </div>
             <div className="card">
               <h2>Compétences</h2>
               <ul className="list">
@@ -118,10 +127,6 @@ function PlayInner({ id, c, up, status, reload, force, role, owner }: { id: stri
                   );
                 })}
               </ul>
-              <div className="small muted" style={{ marginTop: 6 }} title="10 + bonus de Perception">
-                Perception passive <strong style={{ color: 'var(--text-strong)' }}>{pp}</strong>
-                {c.overrides.passivePerception != null && pp !== ppAuto && <> — valeur forcée (calcul : {ppAuto}), modifiable dans Édition › Caractéristiques</>}
-              </div>
             </div>
             <ProficienciesCard c={c} />
             <PersonalityCard c={c} />
@@ -336,15 +341,16 @@ function AttacksCard({ c, up }: { c: Character; up: Up }) {
     <div className="card">
       <h2><Swords size={18} /> Attaques</h2>
       <ul className="list">
-        {c.attacks.map((a) => {
+        {[...c.attacks].sort((x, y) => Number(y.equipped) - Number(x.equipped)).map((a) => {
           const hit = R.attackToHit(c, a);
           const dmg = R.damageExpression(c, a);
           return (
-            <li key={a.id} className="stack" style={{ gap: 4 }}>
+            <li key={a.id} className="stack" style={{ gap: 4, opacity: a.equipped ? 1 : 0.6 }}>
               <div className="row spread" style={{ flexWrap: 'nowrap' }}>
                 <span className="grow" style={{ minWidth: 0 }}>
-                  <strong>{a.name}</strong>
-                  <span className="small muted" style={{ display: 'block' }}>{[a.range, a.mastery, a.notes].filter(Boolean).join(' · ')}</span>
+                  <strong>{a.name}</strong>{' '}
+                  {a.equipped ? <span className="chip on">équipée</span> : <span className="chip">rangée</span>}
+                  <span className="small muted" style={{ display: 'block' }}>{[a.range, a.mastery].filter(Boolean).join(' · ')}</span>
                   {a.count != null && (
                     <span className="row small" style={{ gap: 4, marginTop: 2 }}>
                       <button className="btn ghost sm icon" style={{ minHeight: '1.6rem', minWidth: '1.6rem' }} disabled={a.count <= 0} onClick={() => up((d) => { const x = d.attacks.find((y) => y.id === a.id)!; x.count = Math.max(0, (x.count ?? 0) - 1); })} aria-label={`Utiliser un(e) ${a.name}`}><Minus size={13} /></button>
@@ -363,6 +369,7 @@ function AttacksCard({ c, up }: { c: Character; up: Up }) {
                 })}>{fm(hit)}</button>
                 <button className="btn sm mono" onClick={() => dice.damage(`Dégâts : ${a.name}`, dmg)} title="Lancer les dégâts">{dmg} <span className="small">{a.damageType}</span></button>
               </div>
+              {a.notes && <div className="attack-notes">{a.notes}</div>}
             </li>
           );
         })}
@@ -506,7 +513,7 @@ function InventoryCard({ c, up, onSrd }: { c: Character; up: Up; onSrd: (box: st
           <input value={newBox} onChange={(e) => setNewBox(e.target.value)} placeholder="Nouveau contenant (ex. Sac sans fond, Coffre de la cabane…)" aria-label="Nom du nouveau contenant" />
           <button className="btn sm" type="submit" disabled={!newBox.trim()}><Plus size={16} /> Créer</button>
         </form>
-        <div className="small muted">Valeur, poids et description se modifient dans Édition › Inventaire.</div>
+        <div className="small muted">Valeur, poids, description et contenant se modifient dans Édition › Inventaire.</div>
       </div>
     </div>
   );
@@ -516,8 +523,8 @@ function InventoryCard({ c, up, onSrd }: { c: Character; up: Up; onSrd: (box: st
 function ContainerCard({ c, up, box, onSrd }: { c: Character; up: Up; box: { id: string; name: string }; onSrd: () => void }) {
   const [name, setName] = useState('');
   const [renaming, setRenaming] = useState(false);
-  const items = c.inventory.filter((i) => i.containerId === box.id);
-  const boxes = [{ id: '', name: MAIN_BAG }, ...c.containers];
+  // Objets équipés en premier (ordre d'origine conservé sinon).
+  const items = c.inventory.filter((i) => i.containerId === box.id).sort((x, y) => Number(y.equipped) - Number(x.equipped));
   const weight = Math.round(items.reduce((s, i) => s + (i.weight || 0) * (i.qty || 0), 0) * 100) / 100;
   const setItem = (id: string, fn: (i: Character['inventory'][number]) => void) => up((d) => { const i = d.inventory.find((x) => x.id === id); if (i) fn(i); });
   return (
@@ -556,11 +563,6 @@ function ContainerCard({ c, up, box, onSrd }: { c: Character; up: Up; box: { id:
                 {i.attuned && <span className="chip">harmonisé</span>}
               </span>
               {i.value && <span className="chip warn" title="Valeur">{i.value}</span>}
-              {boxes.length > 1 && (
-                <select className="move-select" value={i.containerId} title="Déplacer vers…" aria-label={`Déplacer ${i.name}`} onChange={(e) => { const to = e.target.value; setItem(i.id, (x) => { x.containerId = to; }); }}>
-                  {boxes.map((b) => <option key={b.id} value={b.id}>{b.id === i.containerId ? '↪ Déplacer' : b.name}</option>)}
-                </select>
-              )}
               <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty = Math.max(0, x.qty - 1); })} aria-label="Retirer un"><Minus size={14} /></button>
               <span className="big-num" style={{ minWidth: 28, textAlign: 'center', fontSize: '1.1rem' }}>{i.qty}</span>
               <button className="btn ghost sm icon" onClick={() => setItem(i.id, (x) => { x.qty += 1; })} aria-label="Ajouter un"><Plus size={14} /></button>
@@ -591,10 +593,10 @@ function FeaturesCard({ c }: { c: Character }) {
     <div className="card">
       <h2>Aptitudes</h2>
       <ul className="list">
-        {c.features.map((f) => (
+        {[...c.features].sort((x, y) => FEATURE_KINDS.indexOf(x.kind) - FEATURE_KINDS.indexOf(y.kind)).map((f) => (
           <li key={f.id}>
             <details>
-              <summary style={{ cursor: 'pointer' }}>{f.name} {f.source && <span className="small muted">— {f.source}</span>}</summary>
+              <summary style={{ cursor: 'pointer' }}><span className={`chip kind-${f.kind}`}>{FEATURE_KIND_LABELS[f.kind]}</span> {f.name} {f.source && <span className="small muted">— {f.source}</span>}</summary>
               {f.description && <div className="small" style={{ marginTop: 4 }}><Markdown text={f.description} /></div>}
             </details>
           </li>

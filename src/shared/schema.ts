@@ -59,6 +59,8 @@ export const Attack = z
     notes: str,
     /** Nombre d'exemplaires (armes de jet, javelines…) ; null = non suivi. */
     count: z.number().int().min(0).nullable().catch(null).default(null),
+    /** Arme en main / équipée (les anciennes fiches sont considérées équipées). */
+    equipped: z.boolean().catch(true).default(true),
   })
   .prefault({});
 
@@ -87,7 +89,10 @@ export const Resource = z
   })
   .prefault({});
 
-export const Feature = z.object({ id, name: str, source: str, description: str }).prefault({});
+export const FEATURE_KINDS = ['action', 'bonus', 'reaction', 'passive', 'other'] as const;
+export const Feature = z
+  .object({ id, name: str, source: str, description: str, kind: z.enum(FEATURE_KINDS).catch('other').default('other') })
+  .prefault({});
 
 export const Item = z
   .object({

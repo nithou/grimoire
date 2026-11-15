@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { BookOpen, Backpack, Image, ScrollText, Shield, Sparkles, User, Wand2, RefreshCw, Plus, Trash2, Crown, History } from 'lucide-react';
+import { BookOpen, Backpack, Image, ScrollText, Shield, Sparkles, User, Wand2, RefreshCw, Plus, Trash2, Crown, History, Eye } from 'lucide-react';
 import { CharacterLog } from '../components/CharacterLog';
 import { SharePanel } from '../components/SharePanel';
 import { useCharacter } from '../useCharacter';
 import type { Character, AttackT, ItemT, SpellT, ResourceT, FeatureT } from '../../shared/schema';
+import { FEATURE_KINDS } from '../../shared/schema';
 import { uid } from '../../shared/schema';
 import {
-  ABILITIES, ABILITY_LABELS, ALIGNMENTS, BACKGROUNDS, CLASSES, CONDITIONS, DAMAGE_TYPES, SKILLS, SPECIES, WEAPON_MASTERIES, findClass, COINS,
+  FEATURE_KIND_LABELS, ABILITIES, ABILITY_LABELS, ALIGNMENTS, BACKGROUNDS, CLASSES, CONDITIONS, DAMAGE_TYPES, SKILLS, SPECIES, WEAPON_MASTERIES, findClass, COINS,
 } from '../../shared/srd-fr';
 import * as R from '../../shared/rules';
 import { DataList, Field, ListEditor, Num, Select, Skeleton, Tabs, TagInput, Text, TextArea } from '../ui';
@@ -153,11 +154,23 @@ function StatsTab({ c, up }: { c: Character; up: Up }) {
           )}
         </div>
         <div className="card stack">
+          <h2><Eye size={18} /> Perception passive</h2>
+          <div className="row" style={{ alignItems: 'flex-end', gap: '1rem' }}>
+            <div className="pp-box"><span className="big-num">{R.passivePerception(c)}</span></div>
+            <Field label={`Valeur (vide = calcul : ${10 + R.skillBonus(c, 'perception')})`} className="grow">
+              <Num nullable placeholder={String(10 + R.skillBonus(c, 'perception'))} value={c.overrides.passivePerception} onChange={(v) => up((d) => { d.overrides.passivePerception = v; })} />
+            </Field>
+            {c.overrides.passivePerception != null && (
+              <button className="btn sm" onClick={() => up((d) => { d.overrides.passivePerception = null; })}>Revenir au calcul</button>
+            )}
+          </div>
+          <p className="small muted" style={{ margin: 0 }}>Calcul : 10 + bonus de Perception ({fm(R.skillBonus(c, 'perception'))}).</p>
+        </div>
+        <div className="card stack">
           <h3>Valeurs forcées</h3>
           <p className="small muted" style={{ margin: 0 }}>Laissez vide pour le calcul automatique.</p>
           <div className="grid g3">
             <Field label={`Bonus de maîtrise (auto ${fm(2 + Math.floor((R.totalLevel(c) - 1) / 4))})`}><Num nullable value={c.overrides.proficiencyBonus} onChange={(v) => up((d) => { d.overrides.proficiencyBonus = v; })} /></Field>
-            <Field label="Perception passive"><Num nullable value={c.overrides.passivePerception} onChange={(v) => up((d) => { d.overrides.passivePerception = v; })} /></Field>
             <Field label="Initiative"><Num nullable value={c.overrides.initiative} onChange={(v) => up((d) => { d.overrides.initiative = v; })} /></Field>
             <Field label="Bonus à tous les JS"><Num value={c.saveBonus} onChange={(v) => up((d) => { d.saveBonus = v ?? 0; })} /></Field>
           </div>
@@ -268,7 +281,7 @@ function CombatTab({ c, up }: { c: Character; up: Up }) {
           <ListEditor<AttackT>
             items={c.attacks}
             onChange={(v) => up((d) => { d.attacks = v; })}
-            make={() => ({ name: 'Nouvelle attaque', ability: 'for', proficient: true, toHitBonus: 0, damage: '1d6', addAbilityToDamage: true, damageBonus: 0, damageType: '', mastery: '', range: '', notes: '', count: null })}
+            make={() => ({ name: 'Nouvelle attaque', ability: 'for', proficient: true, toHitBonus: 0, damage: '1d6', addAbilityToDamage: true, damageBonus: 0, damageType: '', mastery: '', range: '', notes: '', count: null, equipped: true })}
             render={(a, set) => (
               <div className="stack">
                 <div className="grid g3">
@@ -287,10 +300,11 @@ function CombatTab({ c, up }: { c: Character; up: Up }) {
                   <Field label="Type de dégâts"><Text list="dl-dmg" value={a.damageType} onChange={(v) => set({ damageType: v })} /></Field>
                   <Field label="Botte d'arme"><Text list="dl-mastery" value={a.mastery} onChange={(v) => set({ mastery: v })} /></Field>
                   <Field label="Portée"><Text value={a.range} onChange={(v) => set({ range: v })} /></Field>
-                  <Field label="Notes"><Text value={a.notes} onChange={(v) => set({ notes: v })} /></Field>
                   <Field label="Nombre (armes de jet, javelines…)"><Num nullable placeholder="—" value={a.count} min={0} onChange={(v) => set({ count: v == null ? null : Math.max(0, v) })} /></Field>
                 </div>
+                <Field label="Notes (propriétés, effets, conditions…)"><TextArea rows={3} value={a.notes} onChange={(v) => set({ notes: v })} /></Field>
                 <div className="row small">
+                  <label className="row"><input type="checkbox" checked={a.equipped} onChange={(e) => set({ equipped: e.target.checked })} /> Équipée</label>
                   <label className="row"><input type="checkbox" checked={a.proficient} onChange={(e) => set({ proficient: e.target.checked })} /> Maîtrisée</label>
                   <label className="row"><input type="checkbox" checked={a.addAbilityToDamage} onChange={(e) => set({ addAbilityToDamage: e.target.checked })} /> Ajouter le mod. aux dégâts</label>
                   <span className="grow" />
@@ -523,11 +537,14 @@ function ProfileTab({ c, up }: { c: Character; up: Up }) {
           <ListEditor<FeatureT>
             items={c.features}
             onChange={(v) => up((d) => { d.features = v; })}
-            make={() => ({ name: '', source: '', description: '' })}
+            make={() => ({ name: '', source: '', description: '', kind: 'other' as const })}
             render={(f, set) => (
               <div className="stack">
-                <div className="grid g2">
+                <div className="grid g3">
                   <Field label="Nom"><Text value={f.name} onChange={(v) => set({ name: v })} /></Field>
+                  <Field label="Type">
+                    <Select value={f.kind} onChange={(v) => set({ kind: v })} options={FEATURE_KINDS.map((k) => ({ value: k, label: FEATURE_KIND_LABELS[k] }))} />
+                  </Field>
                   <Field label="Source"><Text value={f.source} onChange={(v) => set({ source: v })} placeholder="Classe, espèce, don…" /></Field>
                 </div>
                 <Field label="Description"><TextArea rows={3} value={f.description} onChange={(v) => set({ description: v })} /></Field>

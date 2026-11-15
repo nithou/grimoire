@@ -92,6 +92,10 @@ export const WEAPON_MASTERIES = [
   { key: 'vex', label: 'Ouverture (Vex)' },
 ];
 
+export const FEATURE_KIND_LABELS: Record<'action' | 'bonus' | 'reaction' | 'passive' | 'other', string> = {
+  action: 'Action', bonus: 'Bonus', reaction: 'Réaction', passive: 'Passive', other: 'Autre',
+};
+
 export const COINS = [
   { key: 'pc', label: 'pc', long: 'Pièces de cuivre' },
   { key: 'pa', label: 'pa', long: "Pièces d'argent" },

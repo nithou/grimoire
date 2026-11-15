@@ -44,6 +44,7 @@ export function srdToAttack(e: SrdFull): AttackT {
     mastery,
     range: range ? ftToM(range) : ranged ? '' : 'Contact',
     count: /Thrown|Lancer/i.test(propsEn) ? 1 : null,
+    equipped: true,
     notes: props === '—' ? '' : props,
   };
 }
@@ -67,7 +68,7 @@ export function srdToSpell(e: SrdFull): SpellT {
 }
 
 export function srdToFeature(e: SrdFull): FeatureT {
-  return { id: uid(), name: e.name, source: e.meta || 'Don', description: e.body };
+  return { id: uid(), name: e.name, source: e.meta || 'Don', description: e.body, kind: 'passive' };
 }
 
 export const SRD_TYPE_LABEL: Record<string, string> = {
