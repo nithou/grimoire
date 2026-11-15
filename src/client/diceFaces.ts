@@ -79,7 +79,7 @@ function paintResin(ctx: CanvasRenderingContext2D, ts: number, rand: () => numbe
   ctx.fillStyle = edge;
   ctx.fillRect(0, 0, ts, ts);
   const spec = ctx.createRadialGradient(ts * 0.32, ts * 0.26, 0, ts * 0.32, ts * 0.26, ts * 0.32);
-  spec.addColorStop(0, 'rgba(255, 255, 255, 0.55)');
+  spec.addColorStop(0, 'rgba(255, 255, 255, 0.25)');
   spec.addColorStop(1, 'rgba(255, 255, 255, 0)');
   ctx.fillStyle = spec;
   ctx.fillRect(0, 0, ts, ts);
@@ -92,17 +92,17 @@ function goldText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const g = ctx.createLinearGradient(x - size / 2, y - size / 2, x + size / 2, y + size / 2);
-  g.addColorStop(0, '#A9670F');
-  g.addColorStop(0.45, '#D99B26');
-  g.addColorStop(0.55, '#EAB952');
-  g.addColorStop(1, '#B8761A');
+  g.addColorStop(0, '#8A5208');
+  g.addColorStop(0.45, '#B97512');
+  g.addColorStop(0.55, '#CB8A22');
+  g.addColorStop(1, '#94590A');
   // Creux de gravure : liseré sombre fin.
-  ctx.shadowColor = 'rgba(90, 50, 0, 0.5)';
+  ctx.shadowColor = 'rgba(60, 32, 0, 0.6)';
   ctx.shadowOffsetY = Math.max(1, size * 0.02);
   ctx.shadowBlur = Math.max(1, size * 0.015);
   ctx.lineJoin = 'round';
-  ctx.lineWidth = Math.max(1.5, size * 0.05);
-  ctx.strokeStyle = '#9A5E0E';
+  ctx.lineWidth = Math.max(2, size * 0.075);
+  ctx.strokeStyle = '#5E3504';
   ctx.strokeText(text, x, y);
   ctx.shadowColor = 'transparent';
   ctx.fillStyle = g;
@@ -111,7 +111,7 @@ function goldText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
     const w = ctx.measureText(text).width;
     const h = Math.max(2, size * 0.075);
     const by = y + size * 0.44;
-    ctx.fillStyle = '#9A5E0E';
+    ctx.fillStyle = '#5E3504';
     ctx.fillRect(x - w * 0.42 - 1, by - 1, w * 0.84 + 2, h + 2);
     ctx.fillStyle = g;
     ctx.fillRect(x - w * 0.42, by, w * 0.84, h);

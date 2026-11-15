@@ -96,9 +96,10 @@ function getBox() {
     DICE.vars.desk_color = '#0b0a13';
     DICE.vars.desk_opacity = 0.2;
     DICE.vars.shadow_darkness = 0.6;
-    DICE.vars.ambient_light_color = 0xf4f4f6;
-    DICE.vars.spot_light_color = 0xffffff;
-    Object.assign(DICE.vars.material_options, { color: 0xffffff, specular: 0x9a9a9a, shininess: 70, transparent: true, opacity: 0.97 });
+    // Lumière plus douce : évite que les faces exposées « brûlent » au blanc et masquent les chiffres.
+    DICE.vars.ambient_light_color = 0xc8c8cc;
+    DICE.vars.spot_light_color = 0xd9d9dc;
+    Object.assign(DICE.vars.material_options, { color: 0xffffff, specular: 0x3a3a3a, shininess: 40, transparent: true, opacity: 0.97 });
     DICE.soundUrl = '/dice/nc93322.mp3';
     overlay.innerHTML = '';
     box = new DICE.dice_box(overlay);
