@@ -1,0 +1,316 @@
+{
+  "format": "grimoire-dd",
+  "schemaVersion": 1,
+  "exportedAt": "2026-11-15T12:00:00.000Z",
+  "character": {
+    "schemaVersion": 1,
+    "identity": {
+      "name": "Tharn Brisecolline",
+      "player": "Exemple",
+      "species": "Humain",
+      "background": "Sauvageon",
+      "alignment": "Chaotique Bon",
+      "xp": 4200,
+      "size": "M",
+      "age": "24",
+      "appearance": "Grand et massif, cheveux bruns tressés, barbe hirsute et yeux verts. Porte une cape de mousse et une ceinture chargée de trophées.",
+      "portrait": ""
+    },
+    "classes": [
+      {
+        "id": "ex-class-barbare",
+        "name": "Barbare",
+        "subclass": "Voie du Berserker",
+        "level": 4,
+        "hitDie": "d12"
+      }
+    ],
+    "abilities": {
+      "for": 17,
+      "dex": 13,
+      "con": 15,
+      "int": 10,
+      "sag": 14,
+      "cha": 8
+    },
+    "savingThrows": ["for", "con"],
+    "saveBonus": 0,
+    "skills": {
+      "athletisme": { "prof": 1, "bonus": 0 },
+      "intimidation": { "prof": 1, "bonus": 0 },
+      "perception": { "prof": 1, "bonus": 0 },
+      "survie": { "prof": 1, "bonus": 0 }
+    },
+    "overrides": {
+      "proficiencyBonus": null,
+      "passivePerception": null,
+      "initiative": null
+    },
+    "combat": {
+      "ac": 13,
+      "acNote": "Défense sans armure (10 + DEX + CON). +2 avec le bouclier.",
+      "initiativeBonus": 0,
+      "speed": 9,
+      "hpMax": 41,
+      "hpCurrent": 34,
+      "hpTemp": 0,
+      "hitDice": [{ "die": "d12", "total": 4, "used": 1 }],
+      "deathSaves": { "success": 0, "failure": 0 },
+      "conditions": [],
+      "exhaustion": 0,
+      "heroicInspiration": 1
+    },
+    "attacks": [
+      {
+        "id": "ex-atk-hache",
+        "name": "Hache à deux mains",
+        "ability": "for",
+        "proficient": true,
+        "toHitBonus": 0,
+        "damage": "1d12",
+        "addAbilityToDamage": true,
+        "damageBonus": 0,
+        "damageType": "Tranchant",
+        "mastery": "Enchaînement",
+        "range": "",
+        "notes": "Deux mains, lourde.",
+        "count": null,
+        "equipped": true
+      },
+      {
+        "id": "ex-atk-hachette",
+        "name": "Hachette",
+        "ability": "for",
+        "proficient": true,
+        "toHitBonus": 0,
+        "damage": "1d6",
+        "addAbilityToDamage": true,
+        "damageBonus": 0,
+        "damageType": "Tranchant",
+        "mastery": "Ouverture",
+        "range": "6/18 m",
+        "notes": "Légère, lancer.",
+        "count": 4,
+        "equipped": true
+      },
+      {
+        "id": "ex-atk-massue",
+        "name": "Massue +1",
+        "ability": "for",
+        "proficient": true,
+        "toHitBonus": 1,
+        "damage": "1d4",
+        "addAbilityToDamage": true,
+        "damageBonus": 1,
+        "damageType": "Contondant",
+        "mastery": "",
+        "range": "",
+        "notes": "Arme magique : +1 aux jets d'attaque et de dégâts.",
+        "count": null,
+        "equipped": false
+      }
+    ],
+    "spellcasting": {
+      "ability": null,
+      "slots": [],
+      "spells": []
+    },
+    "resources": [
+      {
+        "id": "ex-res-rage",
+        "name": "Rage",
+        "max": 3,
+        "used": 1,
+        "recharge": "long",
+        "description": "Sans armure lourde : avantage aux tests et JdS de Force, +2 dégâts au corps à corps (arme, Force), résistance contondant, perforant, tranchant. Récupère 1 utilisation par repos court."
+      },
+      {
+        "id": "ex-res-broche",
+        "name": "Broche du veilleur",
+        "max": 1,
+        "used": 0,
+        "recharge": "long",
+        "description": "Une seconde réaction avant le début de ton prochain tour."
+      }
+    ],
+    "features": [
+      {
+        "id": "ex-feat-rage",
+        "name": "Rage",
+        "source": "Barbare",
+        "description": "Sans armure lourde : avantage aux tests et JdS de Force, +2 dégâts au corps à corps (arme, Force), résistance contondant, perforant, tranchant.\nPrend fin si tu tombes inconscient ou si ton tour se termine sans avoir attaqué ni subi de dégâts.",
+        "kind": "bonus"
+      },
+      {
+        "id": "ex-feat-def",
+        "name": "Défense sans armure",
+        "source": "Barbare",
+        "description": "Tant que tu ne portes pas d'armure, ta CA est égale à 10 + mod. de Dextérité + mod. de Constitution. Tu peux porter un bouclier et garder cet avantage.",
+        "kind": "passive"
+      },
+      {
+        "id": "ex-feat-temerite",
+        "name": "Témérité",
+        "source": "Barbare",
+        "description": "Lors de ta première attaque du tour, tu peux attaquer avec témérité : **avantage** à tes attaques au corps à corps utilisant la Force pendant ce tour. En contrepartie, les attaques contre toi ont l'avantage jusqu'à ton prochain tour.",
+        "kind": "action"
+      },
+      {
+        "id": "ex-feat-sens",
+        "name": "Sens du danger",
+        "source": "Barbare",
+        "description": "Avantage aux jets de sauvegarde de Dextérité, sauf si tu es neutralisé.",
+        "kind": "passive"
+      },
+      {
+        "id": "ex-feat-frenesie",
+        "name": "Frénésie",
+        "source": "Voie du Berserker",
+        "description": "Si tu attaques avec témérité pendant ta rage, ta première attaque qui touche inflige des dégâts supplémentaires : un nombre de d6 égal à ton bonus de dégâts de rage.",
+        "kind": "action"
+      }
+    ],
+    "proficiencies": {
+      "armor": ["Légères", "Intermédiaires", "Boucliers"],
+      "weapons": ["Armes courantes", "Armes de guerre"],
+      "tools": ["Flûte"],
+      "languages": ["Commun", "Nain"]
+    },
+    "inventory": [
+      {
+        "id": "ex-inv-dent",
+        "name": "Dent de loup géant",
+        "qty": 3,
+        "weight": 0,
+        "equipped": false,
+        "attuned": false,
+        "value": "",
+        "notes": "",
+        "containerId": "ex-cont-ceinture"
+      },
+      {
+        "id": "ex-inv-corne",
+        "name": "Corne d'ogre",
+        "qty": 1,
+        "weight": 0.5,
+        "equipped": false,
+        "attuned": false,
+        "value": "",
+        "notes": "",
+        "containerId": "ex-cont-ceinture"
+      },
+      {
+        "id": "ex-inv-paquetage",
+        "name": "Paquetage d'explorateur",
+        "qty": 1,
+        "weight": 27,
+        "equipped": false,
+        "attuned": false,
+        "value": "10 po",
+        "notes": "Sac à dos, sac de couchage, 10 rations, outre, 10 torches, boîte à amadou, corde de chanvre (15 m).",
+        "containerId": ""
+      },
+      {
+        "id": "ex-inv-piege",
+        "name": "Piège à mâchoires",
+        "qty": 1,
+        "weight": 12.5,
+        "equipped": false,
+        "attuned": false,
+        "value": "5 po",
+        "notes": "",
+        "containerId": ""
+      },
+      {
+        "id": "ex-inv-bouclier",
+        "name": "Bouclier",
+        "qty": 1,
+        "weight": 3,
+        "equipped": false,
+        "attuned": false,
+        "value": "10 po",
+        "notes": "CA +2. Prendre en main / ranger : action bonus.",
+        "containerId": ""
+      },
+      {
+        "id": "ex-inv-cape",
+        "name": "Cape de mousse",
+        "qty": 1,
+        "weight": 0,
+        "equipped": true,
+        "attuned": false,
+        "value": "",
+        "notes": "Tissée de mousse vivante et de lichen. Avantage aux jets de Discrétion en milieu naturel. Résistance aux dégâts de froid.",
+        "containerId": ""
+      },
+      {
+        "id": "ex-inv-broche",
+        "name": "Broche du veilleur",
+        "qty": 1,
+        "weight": 0,
+        "equipped": true,
+        "attuned": true,
+        "value": "",
+        "notes": "Une broche d'argent en forme de balance.\n*Le gardien ne dormait jamais.*",
+        "containerId": ""
+      },
+      {
+        "id": "ex-inv-potion",
+        "name": "Potion de soins",
+        "qty": 2,
+        "weight": 0.25,
+        "equipped": false,
+        "attuned": false,
+        "value": "50 po",
+        "notes": "Rend 2d4 + 2 PV.",
+        "containerId": ""
+      },
+      {
+        "id": "ex-inv-parchemin",
+        "name": "Parchemin de sort (Flou)",
+        "qty": 1,
+        "weight": 0,
+        "equipped": false,
+        "attuned": false,
+        "value": "",
+        "notes": "Illusion, niveau 2. Portée personnelle. Désavantage à tous les jets d'attaque contre toi pendant 1 minute (concentration).",
+        "containerId": ""
+      }
+    ],
+    "containers": [
+      {
+        "id": "ex-cont-ceinture",
+        "name": "Ceinture à trophées"
+      }
+    ],
+    "coins": {
+      "pc": 12,
+      "pa": 5,
+      "pe": 0,
+      "po": 84,
+      "pp": 0
+    },
+    "personality": {
+      "traits": "Forestier, soif de voyage. Parle peu, mange beaucoup.",
+      "ideals": "Chacun de nous est chargé de contribuer au bonheur de tous.",
+      "bonds": "Ma colère s'abattra sur les nécromanciens qui ont détruit mon clan.",
+      "flaws": "Je réponds à tout défi par la violence.",
+      "backstory": "Seul survivant de son clan, Tharn a grandi dans les forêts du Nord avant de rejoindre une compagnie d'aventuriers."
+    },
+    "allies": [
+      {
+        "id": "ex-ally-1",
+        "name": "Mira",
+        "notes": "Barde de la compagnie"
+      },
+      {
+        "id": "ex-ally-2",
+        "name": "Frère Aldo",
+        "notes": "Clerc, soigne volontiers mais sermonne davantage"
+      }
+    ],
+    "notes": "## Fiche d'exemple\n\nCe personnage sert à tester Grimoire : importez-le depuis **Importer**, puis essayez la vue Jeu (jets, rage, repos, inventaire).",
+    "toVerify": [],
+    "images": []
+  }
+}

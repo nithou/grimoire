@@ -2,6 +2,14 @@
 
 Petite application web auto-hébergée pour gérer des fiches de personnage *Donjons & Dragons* (règles 2024 / SRD 5.2.1), en français.
 
+<p align="center">
+  <img src="docs/capture-fiche.webp" alt="Fiche d'un barbare berserker de niveau 4 dans Grimoire : caractéristiques, compétences, attaques, ressources, aptitudes et plateau de dés" width="600">
+</p>
+
+## Essayer avec un personnage d'exemple
+
+Le fichier [`examples/tharn-barbare.json`](examples/tharn-barbare.json) contient une fiche complète (barbare berserker de niveau 4 : attaques avec bottes d'arme, rage, aptitudes, inventaire avec contenant, monnaie, alliés et notes). Après avoir créé votre compte, ouvrez **Importer** et choisissez ce fichier.
+
 ## Fonctionnalités
 
 - **Comptes** : identifiant et mot de passe (argon2), case « Rester connecté » (cookie de 30 jours, renouvelé à l'usage). Le premier compte créé est administrateur ; `ALLOW_REGISTRATION=false` ferme les inscriptions.
@@ -61,6 +69,8 @@ Si une fiche est ouverte dans le navigateur pendant qu'une IA la modifie, l'inte
 ## Lancer avec Docker
 
 ```bash
+git clone https://github.com/nithou/grimoire.git
+cd grimoire
 cp .env.example .env   # optionnel
 docker compose up -d --build
 ```
