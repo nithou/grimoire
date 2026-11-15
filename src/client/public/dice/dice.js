@@ -165,7 +165,7 @@ const DICE = (function() {
         this.light.shadowCameraFar = mw * 5;
         this.light.shadowCameraFov = 50;
         this.light.shadowBias = 0.001;
-        this.light.shadowDarkness = 1.1;
+        this.light.shadowDarkness = vars.shadow_darkness != null ? vars.shadow_darkness : 1.1; // Grimoire : configurable
         this.light.shadowMapWidth = 1024;
         this.light.shadowMapHeight = 1024;
         this.scene.add(this.light);
@@ -554,6 +554,13 @@ const DICE = (function() {
             var context = canvas.getContext("2d");
             var ts = calc_texture_size(size + size * 2 * margin) * 2;
             canvas.width = canvas.height = ts;
+            // Grimoire : rendu de face personnalisable (DICE.paintFace)
+            if (that.paintFace) {
+                that.paintFace(context, ts, text, { d4: false, margin: margin });
+                var custom = new THREE.Texture(canvas);
+                custom.needsUpdate = true;
+                return custom;
+            }
             context.font = ts / (1 + 2 * margin) + "pt Arial";
             context.fillStyle = back_color;
             context.fillRect(0, 0, canvas.width, canvas.height);
@@ -581,6 +588,12 @@ const DICE = (function() {
             var context = canvas.getContext("2d");
             var ts = calc_texture_size(size + margin) * 2;
             canvas.width = canvas.height = ts;
+            if (that.paintFace) {
+                that.paintFace(context, ts, text, { d4: true, margin: margin });
+                var custom4 = new THREE.Texture(canvas);
+                custom4.needsUpdate = true;
+                return custom4;
+            }
             context.font = (ts - margin) * 0.5 + "pt Arial";
             context.fillStyle = back_color;
             context.fillRect(0, 0, canvas.width, canvas.height);
