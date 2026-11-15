@@ -11,6 +11,8 @@ import authRoutes from './routes/auth';
 import characterRoutes from './routes/characters';
 import uploadRoutes from './routes/uploads';
 import srdRoutes, { loadSrd } from './routes/srd';
+import tokenRoutes from './routes/tokens';
+import mcpRoutes from './mcp';
 
 const PORT = parseInt(process.env.PORT ?? '8080', 10);
 const HOST = process.env.HOST ?? '0.0.0.0';
@@ -40,6 +42,8 @@ await app.register(authRoutes);
 await app.register(characterRoutes);
 await app.register(uploadRoutes);
 await app.register(srdRoutes);
+await app.register(tokenRoutes);
+await app.register(mcpRoutes);
 
 if (existsSync(CLIENT_DIR)) {
   await app.register(fastifyStatic, {
@@ -54,7 +58,7 @@ if (existsSync(CLIENT_DIR)) {
   });
   app.setNotFoundHandler((req, reply) => {
     const path = req.url.split('?')[0];
-    if (path.startsWith('/api/') || path.startsWith('/assets/') || req.method !== 'GET') return reply.code(404).send({ error: 'Introuvable' });
+    if (path.startsWith('/api/') || path.startsWith('/assets/') || path === '/mcp' || req.method !== 'GET') return reply.code(404).send({ error: 'Introuvable' });
     return reply.header('Cache-Control', 'no-cache').sendFile('index.html');
   });
 }

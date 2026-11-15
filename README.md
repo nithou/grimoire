@@ -27,6 +27,32 @@ Petite application web auto-hébergée pour gérer des fiches de personnage *Don
 - **Dés 3D** (three.js et cannon.js) façon Baldur's Gate 3 : les dés roulent à l'écran avant l'affichage du résultat. Désactivables, avec ou sans son.
 - Interface inspirée de Foundry VTT : thème sombre par défaut (Signika et Amiri, accent orange) et thème clair « parchemin ». Mise en page mobile, impression, installable sur l'écran d'accueil iPhone.
 
+## Accès IA (MCP)
+
+Grimoire expose un serveur [MCP](https://modelcontextprotocol.io) minimaliste sur `POST /mcp` (transport « Streamable HTTP », réponses JSON, sans session). Un assistant IA peut ainsi manipuler les fiches **d'un utilisateur** :
+
+1. Dans **Mon compte › Accès IA (MCP)**, créez un jeton personnel (`grm_…`). Il n'est affiché qu'une fois et reste révocable.
+2. Déclarez le serveur dans votre client MCP. Par exemple avec Claude Code :
+
+```bash
+claude mcp add --transport http grimoire https://votre-domaine/mcp --header "Authorization: Bearer grm_…"
+```
+
+Le jeton ne donne accès qu'aux fiches de son propriétaire. Outils disponibles :
+
+| Outil | Rôle |
+| --- | --- |
+| `list_characters`, `get_character` | Lister les fiches, lire une fiche avec toutes les valeurs calculées (option `raw` pour le JSON complet) |
+| `create_character`, `update_character` | Créer une fiche, appliquer un patch JSON partiel (validé par le schéma) |
+| `roll_dice`, `roll_check` | Lancer une expression, ou un jet de la fiche (caractéristique, sauvegarde, compétence, initiative, attaque + dégâts, contre la mort) ; enregistré dans le journal |
+| `adjust_hp` | Dégâts, soins, PV temporaires |
+| `manage_inventory` | Ajouter/retirer des objets (avec contenant), gérer la monnaie |
+| `use_resource` | Ressources de classe, emplacements de sorts, Inspiration |
+| `rest` | Repos court / long |
+| `search_rules` | Recherche dans le SRD 5.2.1 (fr/en) |
+
+Si une fiche est ouverte dans le navigateur pendant qu'une IA la modifie, l'interface signale la modification et propose de recharger.
+
 ## Lancer avec Docker
 
 ```bash

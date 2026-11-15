@@ -23,6 +23,7 @@ async function req<T>(method: string, url: string, body?: unknown): Promise<T> {
   return data as T;
 }
 
+export type ApiToken = { id: number; name: string; prefix: string; created_at: number; last_used_at: number | null };
 export type User = { id: number; username: string; is_admin: number };
 export type CharacterSummary = {
   id: string; name: string; species: string; classes: string; level: number; portrait: string | null; hp: string; updated_at: number; deleted_at: number | null;
@@ -42,6 +43,9 @@ export const api = {
   register: (username: string, password: string, remember: boolean) => req<{ user: User }>('POST', '/api/auth/register', { username, password, remember }),
   logout: () => req('POST', '/api/auth/logout'),
   changePassword: (current: string, next: string) => req('POST', '/api/auth/password', { current, next }),
+  tokens: () => req<ApiToken[]>('GET', '/api/tokens'),
+  createToken: (name: string) => req<{ id: number; token: string }>('POST', '/api/tokens', { name }),
+  revokeToken: (id: number) => req('DELETE', `/api/tokens/${id}`),
 
   list: () => req<CharacterSummary[]>('GET', '/api/characters'),
   trash: () => req<CharacterSummary[]>('GET', '/api/characters/trash'),

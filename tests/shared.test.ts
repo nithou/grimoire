@@ -237,3 +237,23 @@ describe('Contenants', () => {
     expect(d.containers[0].name).toBe('Sac sans fond');
   });
 });
+
+describe('MCP (JSON-RPC)', () => {
+  it('initialise, liste les outils et refuse les méthodes inconnues', async () => {
+    process.env.DATA_DIR = (await import('node:fs')).mkdtempSync((await import('node:path')).join((await import('node:os')).tmpdir(), 'grimoire-test-'));
+    const { handleRpc } = await import('../src/server/mcp');
+    const user = { id: 999, username: 'test', is_admin: 0 };
+    const init = handleRpc(user, { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-03-26' } }) as any;
+    expect(init.result.protocolVersion).toBe('2025-03-26');
+    expect(init.result.capabilities.tools).toBeTruthy();
+    const list = handleRpc(user, { jsonrpc: '2.0', id: 2, method: 'tools/list' }) as any;
+    expect(list.result.tools.map((t: any) => t.name)).toContain('roll_check');
+    expect(handleRpc(user, { jsonrpc: '2.0', method: 'notifications/initialized' })).toBeNull();
+    expect((handleRpc(user, { jsonrpc: '2.0', id: 3, method: 'foo' }) as any).error.code).toBe(-32601);
+    const dice = handleRpc(user, { jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'roll_dice', arguments: { expression: '2d6+3' } } }) as any;
+    expect(dice.result.isError).toBe(false);
+    expect(dice.result.structuredContent.total).toBeGreaterThanOrEqual(5);
+    const missing = handleRpc(user, { jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'get_character', arguments: { character_id: 'nope' } } }) as any;
+    expect(missing.result.isError).toBe(true);
+  });
+});
