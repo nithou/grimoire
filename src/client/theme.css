@@ -454,3 +454,13 @@ pre.code-block { margin: 0; font-family: var(--mono); font-size: 0.78rem; backgr
 @keyframes crit-pop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
 @keyframes crit-fade { 0%, 75% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .crit-banner, .crit-banner span { animation: none !important; } }
+
+/* ---------- Journal des modifications ---------- */
+ol.log { list-style: none; margin: 0; padding: 0; }
+ol.log > li { padding: 0.6rem 0; border-bottom: 1px solid var(--border); }
+ol.log > li:last-child { border-bottom: 0; }
+ul.log-changes { margin: 0.35rem 0 0; padding-left: 1.1rem; font-size: 0.9rem; }
+ul.log-changes li { margin: 0.1rem 0; }
+.log-before { color: var(--text-muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--danger) 60%, transparent); }
+.log-after { color: var(--text-strong); font-weight: 500; }
+.dm-badge { display: inline-flex; align-items: center; gap: 0.35rem; }

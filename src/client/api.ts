@@ -27,8 +27,12 @@ export type ApiToken = { id: number; name: string; prefix: string; created_at: n
 export type User = { id: number; username: string; is_admin: number };
 export type CharacterSummary = {
   id: string; name: string; species: string; classes: string; level: number; portrait: string | null; hp: string; updated_at: number; deleted_at: number | null;
+  role: 'owner' | 'dm'; owner: string | null;
 };
-export type CharacterDoc = { id: string; version: number; updated_at: number; data: Character };
+export type CharacterDoc = { id: string; version: number; updated_at: number; role: 'owner' | 'dm'; owner: string; data: Character };
+export type LogChange = { path: string; label: string; before: string; after: string };
+export type LogEntry = { id: number; username: string; role: 'owner' | 'dm'; source: 'web' | 'mcp'; kind: string; changes: LogChange[]; created_at: number; updated_at: number };
+export type Share = { id: number; username: string; role: string; created_at: number };
 export type RollEntry = { id: number; label: string; detail: string; total: number; created_at: number };
 export type UploadInfo = { id: string; character_id: string | null; original_name: string; width: number; height: number; created_at: number };
 export type SrdLite = { id: string; type: string; name: string; meta: string; level?: number; classes?: string[]; extra?: Record<string, string>; lang?: 'en' | 'fr' };
@@ -58,6 +62,10 @@ export const api = {
   duplicate: (id: string) => req<{ id: string }>('POST', `/api/characters/${id}/duplicate`),
   exportUrl: (id: string) => `/api/characters/${id}/export`,
 
+  log: (id: string) => req<LogEntry[]>('GET', `/api/characters/${id}/log`),
+  shares: (id: string) => req<Share[]>('GET', `/api/characters/${id}/shares`),
+  addShare: (id: string, username: string) => req<{ id: number; username: string }>('POST', `/api/characters/${id}/shares`, { username }),
+  removeShare: (id: string, userId: number) => req('DELETE', `/api/characters/${id}/shares/${userId}`),
   rolls: (id: string) => req<RollEntry[]>('GET', `/api/characters/${id}/rolls`),
   addRoll: (id: string, r: { label: string; detail: string; total: number }) => req<{ id: number }>('POST', `/api/characters/${id}/rolls`, r),
   clearRolls: (id: string) => req('DELETE', `/api/characters/${id}/rolls`),

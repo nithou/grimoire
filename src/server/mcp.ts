@@ -10,6 +10,7 @@ import * as R from '../shared/rules';
 import { roll, rollD20, describeRoll, type D20Mode } from '../shared/dice';
 import { ABILITIES, ABILITY_LABELS, SKILLS, findAbility, findSkill, norm } from '../shared/srd-fr';
 import { searchSrd, getSrdEntry } from './routes/srd';
+import { accessRow, logChange, saveCharacter, visibleRows, type Role } from './access';
 
 const SERVER_INFO = { name: 'grimoire', title: 'Grimoire — fiches D&D 5.2', version: '1.0.0' };
 const PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
@@ -20,22 +21,29 @@ const INSTRUCTIONS =
 
 // ---------------------------------------------------------------------------
 // Accès aux fiches de l'utilisateur
-type Row = { id: string; user_id: number; name: string; data: string; version: number; deleted_at: number | null };
+type Row = { id: string; user_id: number; name: string; data: string; version: number; created_at: number; updated_at: number; deleted_at: number | null };
 
 class ToolError extends Error {}
 
+// Fiche chargée pour l'appel en cours (l'utilisateur courant est mémorisé pour journaliser les modifications).
+type Loaded = { row: Row; c: Character; role: Role; user: SessionUser };
+const ctx = new WeakMap<Row, Loaded>();
+
 function load(user: SessionUser, id: unknown): { row: Row; c: Character } {
   if (typeof id !== 'string' || !id) throw new ToolError('character_id requis');
-  const row = db.prepare('SELECT * FROM characters WHERE id=? AND user_id=? AND deleted_at IS NULL').get(id, user.id) as Row | undefined;
-  if (!row) throw new ToolError(`Fiche introuvable : ${id}`);
-  return { row, c: CharacterSchema.parse(JSON.parse(row.data)) };
+  const a = accessRow(user.id, id);
+  if (!a) throw new ToolError(`Fiche introuvable : ${id}`);
+  const row = a.row as Row;
+  const c = CharacterSchema.parse(JSON.parse(row.data));
+  ctx.set(row, { row, c, role: a.role, user });
+  return { row, c };
 }
 
 function save(row: Row, c: Character) {
   const parsed = CharacterSchema.parse(c);
-  db.prepare('UPDATE characters SET data=?, name=?, version=version+1, updated_at=? WHERE id=?').run(
-    JSON.stringify(parsed), parsed.identity.name || 'Sans nom', now(), row.id,
-  );
+  const l = ctx.get(row);
+  if (!l) throw new ToolError('Fiche non chargée');
+  saveCharacter(row as any, parsed, l.user, l.role, 'mcp');
   return parsed;
 }
 
@@ -100,15 +108,16 @@ const TOOLS: Tool[] = [
   {
     name: 'list_characters',
     title: 'Lister les personnages',
-    description: "Liste les fiches de personnage de l'utilisateur (id, nom, classes, niveau, PV).",
+    description: "Liste les fiches de l'utilisateur et celles dont il est Maître du Donjon (id, nom, classes, niveau, PV, rôle).",
     inputSchema: { type: 'object', properties: {} },
     readOnly: true,
     run: (user) => {
-      const rows = db.prepare('SELECT id, data FROM characters WHERE user_id=? AND deleted_at IS NULL ORDER BY updated_at DESC').all(user.id) as { id: string; data: string }[];
-      return rows.map((r) => {
+      const { own, shared } = visibleRows(user.id);
+      const fmtRow = (r: { id: string; data: string }, role: string, owner?: string) => {
         const c = CharacterSchema.parse(JSON.parse(r.data));
-        return { id: r.id, nom: c.identity.name, classes: c.classes.map((k) => `${k.name} ${k.level}`).join(' / '), niveau: R.totalLevel(c), pv: `${c.combat.hpCurrent}/${c.combat.hpMax}` };
-      });
+        return { id: r.id, nom: c.identity.name, classes: c.classes.map((k) => `${k.name} ${k.level}`).join(' / '), niveau: R.totalLevel(c), pv: `${c.combat.hpCurrent}/${c.combat.hpMax}`, role, ...(owner ? { proprietaire: owner } : {}) };
+      };
+      return [...own.map((r) => fmtRow(r, 'propriétaire')), ...shared.map((r) => fmtRow(r, 'maître du donjon', r.owner_name))];
     },
   },
   {
@@ -132,6 +141,7 @@ const TOOLS: Tool[] = [
       const c = CharacterSchema.parse(a.character ? deepMerge(base, a.character) : base);
       const id = uid() + uid().slice(0, 4);
       db.prepare('INSERT INTO characters(id,user_id,name,data,version,created_at,updated_at) VALUES (?,?,?,?,1,?,?)').run(id, user.id, c.identity.name || 'Sans nom', JSON.stringify(c), now(), now());
+      logChange(id, user, 'owner', 'mcp', 'create', []);
       return { id, nom: c.identity.name };
     },
   },

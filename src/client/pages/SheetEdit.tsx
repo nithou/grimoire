@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { BookOpen, Backpack, Image, ScrollText, Shield, Sparkles, User, Wand2, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { BookOpen, Backpack, Image, ScrollText, Shield, Sparkles, User, Wand2, RefreshCw, Plus, Trash2, Crown, History } from 'lucide-react';
+import { CharacterLog } from '../components/CharacterLog';
+import { SharePanel } from '../components/SharePanel';
 import { useCharacter } from '../useCharacter';
 import type { Character, AttackT, ItemT, SpellT, ResourceT, FeatureT } from '../../shared/schema';
 import { uid } from '../../shared/schema';
@@ -14,21 +16,21 @@ import { SrdPicker } from '../components/SrdPicker';
 import { Gallery } from '../components/Gallery';
 import { srdToAttack, srdToFeature, srdToItem, srdToSpell } from '../srdToSheet';
 
-type Tab = 'identite' | 'stats' | 'combat' | 'sorts' | 'inventaire' | 'profil' | 'images';
+type Tab = 'identite' | 'stats' | 'combat' | 'sorts' | 'inventaire' | 'profil' | 'images' | 'partage' | 'log';
 type Up = (fn: (c: Character) => void) => void;
 
 const fm = R.fmtMod;
 
 export default function SheetEdit() {
   const { id = '' } = useParams();
-  const { char: c, status, update, reload, forceSave, error } = useCharacter(id);
+  const { char: c, status, update, reload, forceSave, error, role, owner } = useCharacter(id);
   const [tab, setTab] = useState<Tab>('identite');
   if (!c) return status === 'error' ? <div className="card error">{error}</div> : <div className="card"><Skeleton lines={8} /></div>;
   const up: Up = (fn) => update((d) => { fn(d); });
 
   return (
     <div>
-      <SheetHeader id={id} c={c} mode="edit" status={status} onForce={forceSave} onReload={reload} onXp={(xp) => up((d) => { d.identity.xp = xp; })} onPortrait={(pid) => up((d) => { d.identity.portrait = pid; if (!d.images.includes(pid)) d.images.push(pid); })} />
+      <SheetHeader id={id} c={c} mode="edit" status={status} onForce={forceSave} onReload={reload} onXp={(xp) => up((d) => { d.identity.xp = xp; })} onPortrait={(pid) => up((d) => { d.identity.portrait = pid; if (!d.images.includes(pid)) d.images.push(pid); })} role={role} owner={owner} />
       <ToVerifyBanner items={c.toVerify} onChange={(v) => up((d) => { d.toVerify = v; })} />
       <Tabs<Tab>
         value={tab}
@@ -41,6 +43,8 @@ export default function SheetEdit() {
           { key: 'inventaire', label: 'Inventaire', icon: <Backpack size={16} /> },
           { key: 'profil', label: 'Profil & aptitudes', icon: <ScrollText size={16} /> },
           { key: 'images', label: 'Images', icon: <Image size={16} /> },
+          { key: 'partage', label: role === 'dm' ? 'Maître du Donjon' : 'Partage (MJ)', icon: <Crown size={16} /> },
+          { key: 'log', label: 'Log', icon: <History size={16} /> },
         ]}
       />
       <div className="fade-in" key={tab}>
@@ -50,6 +54,8 @@ export default function SheetEdit() {
         {tab === 'sorts' && <SpellsTab c={c} up={up} />}
         {tab === 'inventaire' && <InventoryTab c={c} up={up} />}
         {tab === 'profil' && <ProfileTab c={c} up={up} />}
+        {tab === 'partage' && <SharePanel characterId={id} role={role} owner={owner} />}
+        {tab === 'log' && <CharacterLog characterId={id} refreshKey={status === 'saved'} />}
         {tab === 'images' && (
           <div className="card"><Gallery characterId={id} portrait={c.identity.portrait} onSetPortrait={(p) => up((d) => { d.identity.portrait = p; })} /></div>
         )}

@@ -257,3 +257,36 @@ describe('MCP (JSON-RPC)', () => {
     expect(missing.result.isError).toBe(true);
   });
 });
+
+describe('Journal des modifications (diff)', () => {
+  it('décrit les changements de stats, PV, inventaire et ressources', async () => {
+    const { diffCharacters, mergeChanges } = await import('../src/shared/diff');
+    const a = blankCharacter('Test');
+    a.combat.hpMax = 30;
+    a.combat.hpCurrent = 30;
+    a.inventory = [{ id: 'i1', name: 'Corde', qty: 1, weight: 0, equipped: false, attuned: false, value: '', notes: '', containerId: '' }];
+    a.resources = [{ id: 'r1', name: 'Rage', max: 3, used: 0, recharge: 'long', description: '' }];
+    const b = structuredClone(a);
+    b.combat.hpCurrent = 22;
+    b.abilities.for = 18;
+    b.inventory[0].qty = 3;
+    b.inventory.push({ id: 'i2', name: 'Potion de soins', qty: 2, weight: 0, equipped: false, attuned: false, value: '50 po', notes: '', containerId: '' });
+    b.resources[0].used = 1;
+    b.notes = 'x'.repeat(200);
+    const ch = diffCharacters(a, b);
+    const find = (label: string) => ch.find((c) => c.label === label);
+    expect(find('PV')).toMatchObject({ before: '30', after: '22' });
+    expect(find('Force')).toMatchObject({ before: '10', after: '18' });
+    expect(find('Corde (quantité)')).toMatchObject({ before: '1', after: '3' });
+    expect(ch.find((c) => c.after === '+ Potion de soins ×2')).toBeTruthy();
+    expect(find('Rage (dépensées)')).toMatchObject({ before: '0', after: '1' });
+    expect(find('Notes')?.after).toBe('(texte modifié)');
+    expect(diffCharacters(a, a)).toEqual([]);
+
+    // Fusion : 30 → 25 puis 25 → 30 s'annule ; 30 → 25 puis 25 → 20 devient 30 → 20
+    const m1 = mergeChanges([{ path: 'combat.hpCurrent', label: 'PV', before: '30', after: '25' }], [{ path: 'combat.hpCurrent', label: 'PV', before: '25', after: '30' }]);
+    expect(m1).toEqual([]);
+    const m2 = mergeChanges([{ path: 'combat.hpCurrent', label: 'PV', before: '30', after: '25' }], [{ path: 'combat.hpCurrent', label: 'PV', before: '25', after: '20' }]);
+    expect(m2[0]).toMatchObject({ before: '30', after: '20' });
+  });
+});

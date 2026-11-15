@@ -27,6 +27,11 @@ Petite application web auto-hébergée pour gérer des fiches de personnage *Don
 - **Dés 3D** (three.js et cannon.js) façon Baldur's Gate 3 : les dés roulent à l'écran avant l'affichage du résultat. Désactivables, avec ou sans son.
 - Interface inspirée de Foundry VTT : thème sombre par défaut (Signika et Amiri, accent orange) et thème clair « parchemin ». Mise en page mobile, impression, installable sur l'écran d'accueil iPhone.
 
+## Maître du Donjon et journal
+
+- **Maître du Donjon** : dans Édition › Partage (MJ), le propriétaire d'une fiche désigne un ou plusieurs comptes MJ par leur identifiant. Le MJ voit la fiche dans « Partagés avec moi », peut tout modifier (y compris via son accès MCP), mais ne peut ni la supprimer ni gérer les partages. Il peut se retirer lui-même.
+- **Journal (onglet Log)** : chaque modification est inscrite avec son auteur, son rôle (propriétaire ou MJ), son origine (web ou IA/MCP) et le détail avant → après. Les enregistrements automatiques successifs d'une même personne sont regroupés sur 2 minutes.
+
 ## Accès IA (MCP)
 
 Grimoire expose un serveur [MCP](https://modelcontextprotocol.io) minimaliste sur `POST /mcp` (transport « Streamable HTTP », réponses JSON, sans session). Un assistant IA peut ainsi manipuler les fiches **d'un utilisateur** :

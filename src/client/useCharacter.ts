@@ -9,6 +9,7 @@ export function useCharacter(id: string) {
   const [char, setChar] = useState<Character | null>(null);
   const [status, setStatus] = useState<SaveStatus>('loading');
   const [error, setError] = useState<string | null>(null);
+  const [meta, setMeta] = useState<{ role: 'owner' | 'dm'; owner: string }>({ role: 'owner', owner: '' });
   const version = useRef(0);
   const pending = useRef<Character | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -20,6 +21,7 @@ export function useCharacter(id: string) {
       const doc = await api.get(id);
       version.current = doc.version;
       pending.current = null;
+      setMeta({ role: doc.role ?? 'owner', owner: doc.owner ?? '' });
       setChar(doc.data);
       setStatus('saved');
       setError(null);
@@ -106,5 +108,5 @@ export function useCharacter(id: string) {
     };
   }, [id, flush]);
 
-  return { char, status, error, update, replace, reload: load, forceSave, flush };
+  return { char, status, error, update, replace, reload: load, forceSave, flush, role: meta.role, owner: meta.owner };
 }

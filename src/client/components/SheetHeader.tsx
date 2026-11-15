@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, Check, CloudOff, Download, Eye, Loader, Pencil, Plus, Printer, TriangleAlert, UserRound } from 'lucide-react';
+import { Camera, Crown, Check, CloudOff, Download, Eye, Loader, Pencil, Plus, Printer, TriangleAlert, UserRound } from 'lucide-react';
 import { api } from '../api';
 import type { Character } from '../../shared/schema';
 import { totalLevel, xpProgress } from '../../shared/rules';
@@ -65,9 +65,9 @@ export function XpBar({ c, onXp }: { c: Character; onXp: (xp: number) => void })
   );
 }
 
-export function SheetHeader({ id, c, mode, status, onForce, onReload, onXp, onPortrait }: {
+export function SheetHeader({ id, c, mode, status, onForce, onReload, onXp, onPortrait, role = 'owner', owner = '' }: {
   id: string; c: Character; mode: 'edit' | 'play'; status: SaveStatus; onForce: () => void; onReload: () => void;
-  onXp: (xp: number) => void; onPortrait?: (uploadId: string) => void;
+  onXp: (xp: number) => void; onPortrait?: (uploadId: string) => void; role?: 'owner' | 'dm'; owner?: string;
 }) {
   const classes = c.classes.map((k) => `${k.name}${k.subclass ? ` (${k.subclass})` : ''} ${k.level}`).join(' / ');
   const fileRef = useRef<HTMLInputElement>(null);
@@ -105,6 +105,7 @@ export function SheetHeader({ id, c, mode, status, onForce, onReload, onXp, onPo
         )}
         <div style={{ minWidth: 0, flex: 1 }}>
           <h1 style={{ margin: 0 }}>{c.identity.name || 'Sans nom'}</h1>
+          {role === 'dm' && <span className="chip on dm-badge" style={{ marginTop: 4 }}><Crown size={13} /> Maître du Donjon · fiche de {owner}</span>}
           <div className="muted">
             {[c.identity.species, classes || 'Sans classe', c.identity.background].filter(Boolean).join(' · ')} — niveau {totalLevel(c)}
           </div>

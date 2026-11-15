@@ -6,6 +6,7 @@ import sharp from 'sharp';
 // @ts-expect-error pas de types publiés
 import heicConvert from 'heic-convert';
 import { db, now, UPLOAD_DIR } from '../db';
+import { accessRow } from '../access';
 import { uid } from '../../shared/schema';
 import { runOcr, tesseractAvailable } from '../ocr';
 import { parseCard, parseOcrText } from '../../shared/ocr-parse';
@@ -29,6 +30,14 @@ export async function normalizeImage(input: Buffer): Promise<{ full: Buffer; thu
 }
 
 type UploadRow = { id: string; user_id: number; character_id: string | null; original_name: string; width: number; height: number; size: number; ocr_text: string | null; created_at: number };
+/** Image accessible : envoyée par l'utilisateur, ou rattachée à une fiche qu'il peut voir (propriétaire ou MJ). */
+function canAccessUpload(userId: number, id: string): UploadRow | undefined {
+  const row = db.prepare('SELECT * FROM uploads WHERE id=?').get(id) as UploadRow | undefined;
+  if (!row) return;
+  if (row.user_id === userId) return row;
+  if (row.character_id && accessRow(userId, row.character_id)) return row;
+}
+
 const fileFor = (u: { user_id: number; id: string }, thumb = false) => join(UPLOAD_DIR, String(u.user_id), `${u.id}${thumb ? '_t' : ''}.jpg`);
 
 export default async function uploadRoutes(app: FastifyInstance) {
@@ -39,7 +48,7 @@ export default async function uploadRoutes(app: FastifyInstance) {
     if (!buf) return reply.code(413).send({ error: 'Fichier trop volumineux (25 Mo max)' });
     const characterField = file.fields.characterId as { value?: string } | undefined;
     const characterId = characterField?.value || null;
-    if (characterId && !db.prepare('SELECT 1 FROM characters WHERE id=? AND user_id=?').get(characterId, req.user!.id)) {
+    if (characterId && !accessRow(req.user!.id, characterId)) {
       return reply.code(404).send({ error: 'Fiche introuvable' });
     }
     let img;
@@ -62,14 +71,15 @@ export default async function uploadRoutes(app: FastifyInstance) {
 
   app.get('/api/uploads', async (req) => {
     const q = req.query as { characterId?: string };
+    if (q.characterId && !accessRow(req.user!.id, q.characterId)) return [];
     const rows = q.characterId
-      ? db.prepare('SELECT id,character_id,original_name,width,height,created_at FROM uploads WHERE user_id=? AND character_id=? ORDER BY created_at DESC').all(req.user!.id, q.characterId)
+      ? db.prepare('SELECT id,character_id,original_name,width,height,created_at FROM uploads WHERE character_id=? ORDER BY created_at DESC').all(q.characterId)
       : db.prepare('SELECT id,character_id,original_name,width,height,created_at FROM uploads WHERE user_id=? ORDER BY created_at DESC').all(req.user!.id);
     return rows;
   });
 
   app.get<{ Params: { id: string }; Querystring: { thumb?: string } }>('/api/uploads/:id', async (req, reply) => {
-    const row = db.prepare('SELECT * FROM uploads WHERE id=? AND user_id=?').get(req.params.id, req.user!.id) as UploadRow | undefined;
+    const row = canAccessUpload(req.user!.id, req.params.id);
     const path = row && fileFor(row, req.query.thumb === '1');
     if (!row || !path || !existsSync(path)) return reply.code(404).send({ error: 'Image introuvable' });
     reply.header('Content-Type', 'image/jpeg').header('Cache-Control', 'private, max-age=31536000, immutable');
@@ -78,9 +88,9 @@ export default async function uploadRoutes(app: FastifyInstance) {
 
   app.patch<{ Params: { id: string } }>('/api/uploads/:id', async (req, reply) => {
     const body = req.body as { characterId?: string | null };
-    const row = db.prepare('SELECT * FROM uploads WHERE id=? AND user_id=?').get(req.params.id, req.user!.id) as UploadRow | undefined;
+    const row = canAccessUpload(req.user!.id, req.params.id);
     if (!row) return reply.code(404).send({ error: 'Image introuvable' });
-    if (body.characterId && !db.prepare('SELECT 1 FROM characters WHERE id=? AND user_id=?').get(body.characterId, req.user!.id)) {
+    if (body.characterId && !accessRow(req.user!.id, body.characterId)) {
       return reply.code(404).send({ error: 'Fiche introuvable' });
     }
     db.prepare('UPDATE uploads SET character_id=? WHERE id=?').run(body.characterId ?? null, row.id);
@@ -88,7 +98,7 @@ export default async function uploadRoutes(app: FastifyInstance) {
   });
 
   app.delete<{ Params: { id: string } }>('/api/uploads/:id', async (req, reply) => {
-    const row = db.prepare('SELECT * FROM uploads WHERE id=? AND user_id=?').get(req.params.id, req.user!.id) as UploadRow | undefined;
+    const row = canAccessUpload(req.user!.id, req.params.id);
     if (!row) return reply.code(404).send({ error: 'Image introuvable' });
     for (const p of [fileFor(row), fileFor(row, true)]) if (existsSync(p)) unlinkSync(p);
     db.prepare('DELETE FROM uploads WHERE id=?').run(row.id);
@@ -99,7 +109,7 @@ export default async function uploadRoutes(app: FastifyInstance) {
   app.get('/api/ocr/status', async () => ({ available: await tesseractAvailable() }));
 
   app.post<{ Params: { id: string } }>('/api/uploads/:id/ocr', async (req, reply) => {
-    const row = db.prepare('SELECT * FROM uploads WHERE id=? AND user_id=?').get(req.params.id, req.user!.id) as UploadRow | undefined;
+    const row = canAccessUpload(req.user!.id, req.params.id);
     if (!row) return reply.code(404).send({ error: 'Image introuvable' });
     const force = (req.body as { force?: boolean } | undefined)?.force;
     let text = row.ocr_text;

@@ -66,6 +66,27 @@ const migrations: string[] = [
      last_used_at INTEGER
    );
    CREATE INDEX api_tokens_user ON api_tokens(user_id);`,
+  `CREATE TABLE character_shares (
+     character_id TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+     user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     role TEXT NOT NULL DEFAULT 'dm',
+     created_at INTEGER NOT NULL,
+     PRIMARY KEY (character_id, user_id)
+   );
+   CREATE INDEX character_shares_user ON character_shares(user_id);
+   CREATE TABLE character_log (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     character_id TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
+     user_id INTEGER,
+     username TEXT NOT NULL,
+     role TEXT NOT NULL,
+     source TEXT NOT NULL,
+     kind TEXT NOT NULL,
+     changes TEXT NOT NULL,
+     created_at INTEGER NOT NULL,
+     updated_at INTEGER NOT NULL
+   );
+   CREATE INDEX character_log_char ON character_log(character_id, id);`,
 ];
 
 const current = db.pragma('user_version', { simple: true }) as number;

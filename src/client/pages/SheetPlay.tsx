@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Bed, BookOpen, Coffee, Dices, Heart, HeartPulse, Minus, Plus, Shield, Skull, Sparkles, Swords, Trash2, Wand2, Backpack, NotebookPen, Star, Zap, LayoutGrid, Drama, Images, Pencil } from 'lucide-react';
+import { Bed, BookOpen, Coffee, Dices, Heart, HeartPulse, Minus, Plus, Shield, Skull, Sparkles, Swords, Trash2, Wand2, Backpack, NotebookPen, Star, Zap, LayoutGrid, Drama, Images, Pencil, History } from 'lucide-react';
+import { CharacterLog } from '../components/CharacterLog';
 import { useCharacter } from '../useCharacter';
 import { DiceProvider, DiceTray, ModeSwitch, useDice } from '../dice';
 import type { Character } from '../../shared/schema';
@@ -22,15 +23,15 @@ export default function SheetPlay() {
   if (!h.char) return h.status === 'error' ? <div className="card error">{h.error}</div> : <div className="card"><Skeleton lines={8} /></div>;
   return (
     <DiceProvider characterId={id}>
-      <PlayInner id={id} c={h.char} up={h.update} status={h.status} reload={h.reload} force={h.forceSave} />
+      <PlayInner id={id} c={h.char} up={h.update} status={h.status} reload={h.reload} force={h.forceSave} role={h.role} owner={h.owner} />
     </DiceProvider>
   );
 }
 
-type PlayTab = 'general' | 'inventaire' | 'notes';
+type PlayTab = 'general' | 'inventaire' | 'notes' | 'log';
 const TAB_KEY = 'grimoire.playTab';
 
-function PlayInner({ id, c, up, status, reload, force }: { id: string; c: Character; up: Up; status: any; reload: () => void; force: () => void }) {
+function PlayInner({ id, c, up, status, reload, force, role, owner }: { id: string; c: Character; up: Up; status: any; reload: () => void; force: () => void; role: 'owner' | 'dm'; owner: string }) {
   const dice = useDice();
   const pen = R.exhaustionPenalty(c);
   const [srdOpen, setSrdOpen] = useState<string | null>(null);
@@ -53,7 +54,7 @@ function PlayInner({ id, c, up, status, reload, force }: { id: string; c: Charac
 
   return (
     <div>
-      <SheetHeader id={id} c={c} mode="play" status={status} onForce={force} onReload={reload} onXp={(xp) => up((d) => { d.identity.xp = xp; })} />
+      <SheetHeader id={id} c={c} mode="play" status={status} onForce={force} onReload={reload} onXp={(xp) => up((d) => { d.identity.xp = xp; })} role={role} owner={owner} />
       <ToVerifyBanner items={c.toVerify} />
 
       <div className="sticky-tools no-print">
@@ -65,6 +66,7 @@ function PlayInner({ id, c, up, status, reload, force }: { id: string; c: Charac
               { key: 'general', label: 'Général', icon: <LayoutGrid size={16} /> },
               { key: 'inventaire', label: 'Inventaire', icon: <Backpack size={16} /> },
               { key: 'notes', label: 'Notes', icon: <NotebookPen size={16} /> },
+              { key: 'log', label: 'Log', icon: <History size={16} /> },
             ]}
           />
           <div className="row" style={{ paddingBottom: 6 }}>
@@ -173,6 +175,12 @@ function PlayInner({ id, c, up, status, reload, force }: { id: string; c: Charac
             <h2><Images size={18} /> Images</h2>
             <Gallery characterId={id} portrait={c.identity.portrait} onSetPortrait={(p) => up((d) => { d.identity.portrait = p; })} />
           </div>
+        </div>
+      )}
+
+      {tab === 'log' && (
+        <div className="fade-in">
+          <CharacterLog characterId={id} refreshKey={status === 'saved'} />
         </div>
       )}
 
