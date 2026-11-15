@@ -87,14 +87,14 @@ function getBox() {
   }
   const size = `${window.innerWidth}x${window.innerHeight}`;
   if (!box || size !== boxSize) {
-    // Palette steampunk : dés acajou, chiffres laiton.
-    DICE.vars.dice_color = '#4a0a06';
-    DICE.vars.label_color = '#e6cf74';
-    DICE.vars.desk_color = '#140c0a';
-    DICE.vars.desk_opacity = 0.35;
-    DICE.vars.material_options.specular = 0x6b5a1e;
-    DICE.vars.material_options.color = 0xb08a3a;
-    DICE.vars.material_options.shininess = 60;
+    // Dés nuit à chiffres or, reflets chauds.
+    DICE.vars.dice_color = '#1d1a2b';
+    DICE.vars.label_color = '#f2c27a';
+    DICE.vars.desk_color = '#0b0a13';
+    DICE.vars.desk_opacity = 0.3;
+    DICE.vars.material_options.specular = 0x7a4a1a;
+    DICE.vars.material_options.color = 0xc9b8a0;
+    DICE.vars.material_options.shininess = 50;
     DICE.soundUrl = '/dice/nc93322.mp3';
     overlay.innerHTML = '';
     box = new DICE.dice_box(overlay);

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Box, Cog, Volume2, VolumeX, X } from 'lucide-react';
+import { Box, Dices, Volume2, VolumeX, X } from 'lucide-react';
 import { roll, rollD20, describeRoll, type D20Mode, type RollResult } from '../shared/dice';
 import { animateDice, dice3dPrefs, type DiceGroup } from './dice3d';
 import { fmtMod } from '../shared/rules';
@@ -125,7 +125,7 @@ export function DiceProvider({ characterId, children }: { characterId?: string; 
             <button className="btn ghost sm icon" onClick={() => setShown(null)} aria-label="Fermer"><X size={16} /></button>
           </div>
           <div className="row" style={{ alignItems: 'center', gap: '0.75rem', marginTop: 4 }}>
-            <Cog size={34} className={rolling ? 'gear-spin' : ''} style={{ color: 'var(--brass)', animationDuration: '0.6s' }} />
+            <Dices size={32} className={`dice-icon ${rolling ? 'spin' : ''}`} />
             <span className={`total ${shown.tone ?? ''}`}>{rolling ? '…' : shown.total}</span>
             <span className="mono small muted grow" style={{ wordBreak: 'break-word' }}>{shown.detail}</span>
           </div>

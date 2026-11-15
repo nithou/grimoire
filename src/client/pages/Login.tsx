@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Cog, KeyRound, UserPlus } from 'lucide-react';
+import { Dices, KeyRound, UserPlus } from 'lucide-react';
 import { api } from '../api';
 import { useAuth } from '../App';
 import { Field } from '../ui';
@@ -36,9 +36,9 @@ export default function LoginPage() {
 
   return (
     <div style={{ display: 'grid', placeItems: 'center', minHeight: '60dvh' }}>
-      <form className="card brass rivets fade-in stack" style={{ width: 'min(420px, 100%)', gap: '0.9rem', padding: '1.5rem' }} onSubmit={submit}>
+      <form className="card brass fade-in stack" style={{ width: 'min(420px, 100%)', gap: '0.9rem', padding: '1.5rem' }} onSubmit={submit}>
         <div className="row" style={{ justifyContent: 'center' }}>
-          <Cog size={40} className="gear-spin" style={{ color: 'var(--brass)' }} />
+          <Dices size={40} style={{ color: 'var(--accent)' }} />
         </div>
         <h1 style={{ textAlign: 'center' }}>{mode === 'login' ? 'Entrer dans le Grimoire' : 'Créer un compte'}</h1>
         <p className="muted small" style={{ textAlign: 'center', margin: 0 }}>Fiches de personnage pour Donjons & Dragons 5.2</p>

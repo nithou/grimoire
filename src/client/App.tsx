@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, NavLink, Route, Routes, Link } from 'react-router-dom';
-import { Cog, Users, BookOpen, FileUp, LogOut, Moon, Sun, Settings } from 'lucide-react';
+import { Dices, Users, BookOpen, FileUp, LogOut, Moon, Sun, Settings } from 'lucide-react';
 import { api, type User } from './api';
 import { Skeleton } from './ui';
 import LoginPage from './pages/Login';
@@ -19,13 +19,13 @@ function useTheme() {
   const read = () => {
     try { return (localStorage.getItem('theme') as 'light' | 'dark' | null) ?? null; } catch { return null; }
   };
+  // Sombre par défaut (comme Foundry) ; le thème clair « parchemin » est un choix explicite.
   const [theme, setTheme] = useState<'light' | 'dark' | null>(read);
   useEffect(() => {
-    if (theme) document.documentElement.dataset.theme = theme;
-    else delete document.documentElement.dataset.theme;
-    try { theme ? localStorage.setItem('theme', theme) : localStorage.removeItem('theme'); } catch { /* stockage indisponible */ }
+    document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+    try { if (theme) localStorage.setItem('theme', theme); } catch { /* stockage indisponible */ }
   }, [theme]);
-  const dark = theme ? theme === 'dark' : window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+  const dark = theme !== 'light';
   return { dark, toggle: () => setTheme(dark ? 'light' : 'dark') };
 }
 
@@ -37,7 +37,7 @@ function Layout({ children }: { children: ReactNode }) {
       <header className="app-header no-print">
         <div className="inner">
           <Link to="/" className="brand">
-            <Cog size={26} className="gear-spin" /> <span className="brand-text">Grimoire</span>
+            <Dices size={26} /> <span className="brand-text">Grimoire</span>
           </Link>
           {user && (
             <nav className="nav">
@@ -45,7 +45,7 @@ function Layout({ children }: { children: ReactNode }) {
               <NavLink to="/import"><FileUp size={18} /><span className="label">Importer</span></NavLink>
               <NavLink to="/srd"><BookOpen size={18} /><span className="label">Règles SRD</span></NavLink>
               <NavLink to="/compte" title={user.username}><Settings size={18} /><span className="label">{user.username}</span></NavLink>
-              <button onClick={toggle} aria-label={dark ? 'Thème clair' : 'Thème sombre'} title={dark ? 'Thème clair' : 'Thème « lampe à gaz »'}>
+              <button onClick={toggle} aria-label={dark ? 'Thème clair' : 'Thème sombre'} title={dark ? 'Thème clair (parchemin)' : 'Thème sombre'}>
                 {dark ? <Sun size={18} /> : <Moon size={18} />}
               </button>
               <button onClick={async () => { await api.logout(); setUser(null); }} aria-label="Se déconnecter" title="Se déconnecter">

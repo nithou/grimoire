@@ -25,7 +25,7 @@ Petite application web auto-hébergée pour gérer des fiches de personnage *Don
   - Suggestions de valeurs de fiche à valider, et lecture de **cartes** (objet, aptitude) : titre, description et usage (« 1 / repos long ») ajoutables en objet, aptitude ou ressource.
 - **Référence SRD 5.2.1 en français** (et en anglais, au choix) : sorts, armes, armures, équipement, objets magiques, dons, glossaire. Recherche et ajout direct à une fiche.
 - **Dés 3D** (three.js et cannon.js) façon Baldur's Gate 3 : les dés roulent à l'écran avant l'affichage du résultat. Désactivables, avec ou sans son.
-- Thème steampunk victorien clair, et thème sombre « lampe à gaz ». Mise en page mobile, impression, installable sur l'écran d'accueil iPhone.
+- Interface inspirée de Foundry VTT : thème sombre par défaut (Signika et Amiri, accent orange) et thème clair « parchemin ». Mise en page mobile, impression, installable sur l'écran d'accueil iPhone.
 
 ## Lancer avec Docker
 

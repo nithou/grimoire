@@ -37,8 +37,8 @@ export default function CharactersPage() {
       {!list ? (
         <div className="grid g3">{[0, 1, 2].map((i) => <div key={i} className="card"><Skeleton /></div>)}</div>
       ) : list.length === 0 ? (
-        <div className="card brass rivets" style={{ textAlign: 'center', padding: '2.5rem 1rem' }}>
-          <UserRound size={48} style={{ color: 'var(--brass)' }} />
+        <div className="card brass" style={{ textAlign: 'center', padding: '2.5rem 1rem' }}>
+          <UserRound size={48} style={{ color: 'var(--accent)' }} />
           <h2>Aucun personnage pour l'instant</h2>
           <p className="muted">Créez une fiche vierge, importez un fichier JSON ou lisez une photo de fiche papier.</p>
           <div className="row" style={{ justifyContent: 'center' }}>
@@ -49,7 +49,7 @@ export default function CharactersPage() {
       ) : (
         <div className="grid g3">
           {list.map((c, i) => (
-            <div key={c.id} className="card rivets fade-in stack" style={{ animationDelay: `${i * 60}ms` }}>
+            <div key={c.id} className="card fade-in stack" style={{ animationDelay: `${i * 60}ms` }}>
               <Link to={`/c/${c.id}`} className="char-card">
                 <div className="portrait">
                   {c.portrait ? <img src={api.imageUrl(c.portrait, true)} alt="" className="portrait" style={{ border: 0 }} /> : <UserRound size={36} />}
