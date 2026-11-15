@@ -1,4 +1,4 @@
-// Import JSON : format natif (export Grimoire) ou format libre en français (type braillann.json).
+// Import JSON : format natif (export Grimoire) ou format libre en français.
 import { CharacterSchema, SCHEMA_VERSION, type Character, uid } from './schema';
 import { abilityMod } from './rules';
 import { ABILITIES, findAbility, findClass, findSkill, norm, type Ability } from './srd-fr';

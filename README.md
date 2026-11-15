@@ -26,7 +26,7 @@ Le fichier [`examples/tharn-barbare.json`](examples/tharn-barbare.json) contient
   - dégâts, soins et PV temporaires, dés de vie, emplacements, ressources, repos court et repos long ;
   - inventaire, monnaie et notes modifiables ;
   - plateau de dés libre et journal des lancers.
-- **Import et export JSON** : format natif versionné, plus import du format libre en français (voir `braillann.json`) avec avertissements sur les incohérences.
+- **Import et export JSON** : format natif versionné, plus import du format libre en français avec avertissements sur les incohérences.
 - **Images** : upload HEIC (iPhone), JPEG, PNG ou WebP, converties automatiquement en JPEG.
   - Galerie par personnage, portrait, zoom.
   - **OCR local Tesseract** (fra et eng) avec redressement automatique des photos inclinées (plusieurs angles testés).

@@ -107,26 +107,62 @@ describe('dés', () => {
   });
 });
 
+// Fiche au format libre en français (transcription d'une fiche papier).
+const LEGACY_SHEET = {
+  personnage: {
+    nom: 'Tharn', joueur: 'Exemple', espece: 'Humain', classe: 'Barbare', sous_classe: 'Voie du Berserker',
+    niveau: 4, historique: 'Sauvageon', alignement: 'Chaotique Bon', points_experience: 4200,
+  },
+  caracteristiques: {
+    force: { valeur: 17, modificateur_note: 4 },
+    dexterite: { valeur: 13, modificateur: 1 },
+    constitution: { valeur: 15, modificateur: 2 },
+    intelligence: { valeur: 10, modificateur: 0 },
+    sagesse: { valeur: 14, modificateur: 2 },
+    charisme: { valeur: 8, modificateur: -1 },
+  },
+  bonus_maitrise: 2,
+  inspiration: 1,
+  jets_de_sauvegarde_maitrises: ['Force', 'Constitution'],
+  competences_maitrisees: ['Athlétisme', 'Intimidation', 'Perception', 'Survie'],
+  combat: { classe_armure: 13, initiative: 1, vitesse_m: 9, points_de_vie_max: 41, des_de_vie: { nombre: 4, type: 'd12' } },
+  attaques: [
+    { nom: 'Hache à deux mains', bonus_attaque: '3+2', degats: '1d12', type: 'tranchant' },
+    { nom: 'Hachette', bonus_attaque: '3+2', degats: '1d6', type: 'tranchant' },
+    { nom: 'Javeline', bonus_attaque: '1+2', degats: '1d6', type: 'perforant' },
+  ],
+  capacites: [
+    { nom: 'Rage', utilisations: 2, effets: ['Avantage aux tests de Force'] },
+    { nom: 'Défense sans armure' },
+  ],
+  maitrises: { armures: ['Légères'], armes: ['Armes courantes', 'Armes de guerre'], outils_instruments: ['Flûte'], langues: ['Commun'] },
+  monnaie: { pc: 12, pa: 5, pe: 0, po: 84, pp: 0 },
+  equipement: ['4 javelines', "Paquetage d'explorateur", 'Amulette à nager (transcription incertaine)', 'Serpe gravée (25 po)'],
+  personnalite: { traits: ['Forestier'], ideal: 'Liberté', lien: 'Mon clan', defaut: 'Colérique' },
+  allies: [{ nom: 'Mira', classe: 'Barde' }],
+  a_verifier: ['Rage : 3 utilisations au niveau 4, la fiche indique 2', 'Javeline : devrait utiliser la Force'],
+};
+
 describe('import JSON', () => {
-  const raw = JSON.parse(readFileSync(resolve(__dirname, '../braillann.json'), 'utf8'));
-  it('convertit le format libre braillann.json', () => {
+  const raw = LEGACY_SHEET;
+  it('convertit le format libre en français', () => {
     const { character: c, format, warnings } = importCharacterJson(raw);
     expect(format).toBe('legacy');
-    expect(c.identity.name).toBe('Braillânn');
+    expect(c.identity.name).toBe('Tharn');
     expect(c.classes[0]).toMatchObject({ name: 'Barbare', level: 4, hitDie: 'd12' });
     expect(R.mod(c, 'for')).toBe(3);
     expect(c.attacks).toHaveLength(3);
     expect(c.attacks[0].toHitBonus).toBe(5);
-    expect(c.coins.po).toBe(128);
+    expect(c.coins.po).toBe(84);
     expect(c.savingThrows).toEqual(['for', 'con']);
     expect(c.skills.athletisme.prof).toBe(1);
     expect(c.inventory[0]).toMatchObject({ name: 'javelines', qty: 4 });
     expect(c.inventory.find((i) => i.name === 'Serpe gravée')).toMatchObject({ value: '25 po' });
     expect(c.inventory.find((i) => i.name === 'Amulette à nager')).toMatchObject({ notes: 'transcription incertaine', value: '' });
     expect(c.resources[0]).toMatchObject({ name: 'Rage', max: 2 });
-    expect(c.toVerify.length).toBe(8);
+    expect(c.toVerify.length).toBe(2);
     expect(R.initiative(c)).toBe(1);
-    expect(c.combat.heroicInspiration).toBe(4);
+    expect(c.combat.heroicInspiration).toBe(1);
     expect(warnings.some((w) => w.includes('force'))).toBe(true);
   });
   it('aller-retour au format natif', () => {
@@ -135,6 +171,13 @@ describe('import JSON', () => {
     const back = importCharacterJson(exported);
     expect(back.format).toBe('native');
     expect(back.character).toEqual(c);
+  });
+  it("importe le personnage d'exemple sans perte", () => {
+    const file = JSON.parse(readFileSync(resolve(__dirname, '../examples/tharn-barbare.json'), 'utf8'));
+    const { character, format, warnings } = importCharacterJson(file);
+    expect(format).toBe('native');
+    expect(warnings).toEqual([]);
+    expect(JSON.parse(JSON.stringify(character))).toEqual(file.character);
   });
   it('rejette un format inconnu', () => {
     expect(() => importCharacterJson({ foo: 1 })).toThrow();
