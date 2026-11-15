@@ -12,6 +12,8 @@ export type RollDisplay = {
   tone?: 'crit' | 'fumble';
   note?: string;
   action?: { label: string; run: () => void };
+  /** Annonce plein écran sur un 20 ou un 1 naturel au d20. */
+  critical?: 'success' | 'failure';
 };
 
 type Ctx = {
@@ -42,6 +44,8 @@ export function DiceProvider({ characterId, children }: { characterId?: string; 
   }, [characterId]);
 
   const seq = useRef(0);
+  const [critical, setCritical] = useState<RollDisplay['critical'] | null>(null);
+  const critTimer = useRef<ReturnType<typeof setTimeout>>();
 
   /** Joue l'animation 3D (si activée) puis affiche le résultat. Le journal est mis à jour immédiatement. */
   const show = useCallback(
@@ -55,6 +59,12 @@ export function DiceProvider({ characterId, children }: { characterId?: string; 
       if (n !== seq.current) return; // un lancer plus récent a pris le relais
       setLog((l) => [{ ...entry, id: Date.now(), created_at: Date.now() }, ...l].slice(0, 100));
       setShown(r);
+      if (r.critical) {
+        setCritical(null);
+        requestAnimationFrame(() => setCritical(r.critical!));
+        if (critTimer.current) clearTimeout(critTimer.current);
+        critTimer.current = setTimeout(() => setCritical(null), 2200);
+      }
       setTimeout(() => setRolling(false), 350);
       if (hideTimer.current) clearTimeout(hideTimer.current);
       hideTimer.current = setTimeout(() => setShown(null), r.action ? 15000 : 8000);
@@ -80,6 +90,7 @@ export function DiceProvider({ characterId, children }: { characterId?: string; 
         tone: r.isCrit ? 'crit' : r.isFumble ? 'fumble' : undefined,
         note: res.note ?? opts.note ?? (r.isCrit ? '20 naturel !' : r.isFumble ? '1 naturel…' : undefined),
         action: res.action,
+        critical: r.isCrit ? 'success' : r.isFumble ? 'failure' : undefined,
       }, [{ sides: 20, values: r.rolls }]);
       return { nat: r.nat, total: r.total };
     },
@@ -102,7 +113,13 @@ export function DiceProvider({ characterId, children }: { characterId?: string; 
     (expr) => {
       try {
         const r = roll(expr);
-        show({ label: expr, total: r.total, detail: describeRoll(r) }, groupsOf(r));
+        const dice = r.terms.filter((t) => t.rolls.length);
+        const single20 = dice.length === 1 && dice[0].label === '1d20' ? dice[0].rolls[0] : null;
+        show({
+          label: expr, total: r.total, detail: describeRoll(r),
+          tone: single20 === 20 ? 'crit' : single20 === 1 ? 'fumble' : undefined,
+          critical: single20 === 20 ? 'success' : single20 === 1 ? 'failure' : undefined,
+        }, groupsOf(r));
       } catch (e) {
         show({ label: expr, total: 0, detail: (e as Error).message, tone: 'fumble' });
       }
@@ -118,6 +135,11 @@ export function DiceProvider({ characterId, children }: { characterId?: string; 
   return (
     <DiceCtx.Provider value={{ mode, setMode, d20, damage, free, log, clearLog }}>
       {children}
+      {critical && (
+        <div className={`crit-banner ${critical}`} role="status" aria-live="assertive" onClick={() => setCritical(null)}>
+          <span>{critical === 'success' ? 'Critical Success' : 'Critical Failure'}</span>
+        </div>
+      )}
       {shown && (
         <div className="dice-toast" role="status" aria-live="polite">
           <div className="row spread">
