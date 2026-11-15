@@ -837,6 +837,8 @@ const DICE = (function() {
 
     function shift_dice_faces(dice, value, res) {
         var r = CONSTS.dice_face_range[dice.dice_type];
+        // Grimoire : le dé des dizaines (d100) renvoie 0..90 ; on ramène valeur et résultat à l'index 0..9
+        if (dice.dice_type == 'd100') { value = Math.round(value / 10); res = Math.round(res / 10); }
         if (dice.dice_type == 'd10' && value == 10) value = 0;
         if (!(value >= r[0] && value <= r[1])) return;
         var num = value - res;

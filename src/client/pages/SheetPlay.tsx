@@ -147,8 +147,8 @@ function PlayInner({ id, c, up, status, reload, force }: { id: string; c: Charac
             <div className="card stack">
               <h2><Dices size={18} /> Dés</h2>
               <div className="stack" style={{ gap: 4 }}>
-                <span className="small muted">Mode des jets d20 (tests, sauvegardes, attaques)</span>
-                <ModeSwitch />
+                <span className="field-label">Jets d20</span>
+                <ModeSwitch full />
               </div>
               <DiceTray />
             </div>

@@ -10,7 +10,7 @@ declare global {
 
 import { DICE_FONT, paintFace } from './diceFaces';
 
-const SUPPORTED = new Set([4, 6, 8, 10, 12, 20]);
+const SUPPORTED = new Set([4, 6, 8, 10, 12, 20, 100]);
 // Version du build : les scripts de /dice ont une URL fixe, on la rend unique à chaque build
 // pour qu'aucun cache (navigateur, reverse proxy, CDN) ne serve une ancienne librairie.
 declare const __BUILD_ID__: string;
@@ -132,7 +132,16 @@ export type DiceGroup = { sides: number; values: number[] };
  */
 export async function animateDice(groups: DiceGroup[]): Promise<void> {
   if (!dice3dPrefs.enabled) return;
-  const dice = groups.filter((g) => SUPPORTED.has(g.sides)).flatMap((g) => g.values.map((v) => ({ sides: g.sides, v })));
+  // d100 = dé des dizaines (00–90) + d10 des unités (0–9) ; 100 = « 00 » + « 0 ».
+  const dice = groups
+    .filter((g) => SUPPORTED.has(g.sides))
+    .flatMap((g) =>
+      g.values.flatMap((v) =>
+        g.sides === 100
+          ? [{ type: 'd100', forced: v === 100 ? 0 : Math.floor(v / 10) * 10 }, { type: 'd10', forced: v % 10 }]
+          : [{ type: `d${g.sides}`, forced: g.sides === 10 ? v % 10 : v }],
+      ),
+    );
   if (!dice.length) return;
   const shown = dice.slice(0, 12); // au-delà, l'animation devient illisible
   try {
@@ -143,11 +152,11 @@ export async function animateDice(groups: DiceGroup[]): Promise<void> {
   const b = getBox();
   if (b.rolling) return;
   overlay!.classList.add('on');
-  b.setDice(shown.map((d) => `1d${d.sides}`).join('+'));
+  b.setDice(shown.map((d) => `1${d.type}`).join('+'));
   await new Promise<void>((resolve) => {
     const fallback = setTimeout(resolve, 6000);
     b.start_throw(
-      () => shown.map((d) => (d.sides === 10 ? d.v % 10 : d.v)),
+      () => shown.map((d) => d.forced),
       () => {
         clearTimeout(fallback);
         resolve();

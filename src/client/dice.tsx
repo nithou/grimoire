@@ -141,7 +141,7 @@ export function DiceProvider({ characterId, children }: { characterId?: string; 
   );
 }
 
-export function ModeSwitch() {
+export function ModeSwitch({ full = false }: { full?: boolean } = {}) {
   const { mode, setMode } = useDice();
   const opts: { k: D20Mode; l: string }[] = [
     { k: 'disadvantage', l: 'Désavantage' },
@@ -149,7 +149,7 @@ export function ModeSwitch() {
     { k: 'advantage', l: 'Avantage' },
   ];
   return (
-    <div className="mode-switch" role="radiogroup" aria-label="Mode de lancer">
+    <div className={`mode-switch ${full ? 'full' : ''}`} role="radiogroup" aria-label="Mode de lancer">
       {opts.map((o) => (
         <button key={o.k} role="radio" aria-checked={mode === o.k} className={mode === o.k ? 'on' : ''} onClick={() => setMode(o.k)}>{o.l}</button>
       ))}
