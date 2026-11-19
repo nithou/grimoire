@@ -64,11 +64,25 @@ export function srdToItem(e: SrdFull): ItemT {
 }
 
 export function srdToSpell(e: SrdFull): SpellT {
-  return { id: uid(), name: e.name, level: e.level ?? 0, prepared: (e.level ?? 0) === 0, alwaysPrepared: false, srdName: e.id, notes: '' };
+  const concentration = /\*\*(?:Durée|Duration)\s*:?\*\*\s*:?\s*Concentration/i.test(e.body);
+  return { id: uid(), name: e.name, level: e.level ?? 0, prepared: (e.level ?? 0) === 0, alwaysPrepared: false, srdName: e.id, notes: '', concentration };
+}
+
+/** Type de don d'après la ligne « Don d'origines », « General Feat »… du SRD. */
+export function featTypeOf(meta: string): string {
+  if (/origin/i.test(meta)) return 'Origine';
+  if (/général|general/i.test(meta)) return 'Général';
+  if (/style de combat|fighting style/i.test(meta)) return 'Style de combat';
+  if (/épique|epic/i.test(meta)) return 'Faveur épique';
+  return '';
 }
 
 export function srdToFeature(e: SrdFull): FeatureT {
-  return { id: uid(), name: e.name, source: e.meta || 'Don', description: e.body, kind: 'passive' };
+  const prereq = e.meta.match(/\((?:prérequis|Prerequisite)\s*:\s*([^)]*)\)/i)?.[1];
+  return {
+    id: uid(), name: e.name, source: prereq ? `Prérequis : ${prereq}` : '', description: e.body, kind: 'passive',
+    category: 'feat', featType: featTypeOf(e.meta),
+  };
 }
 
 export const SRD_TYPE_LABEL: Record<string, string> = {

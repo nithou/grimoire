@@ -63,7 +63,19 @@ export const SPECIES = [
   'Drakéide', 'Elfe', 'Gnome', 'Goliath', 'Halfelin', 'Humain', 'Nain', 'Orc', 'Tieffelin',
 ];
 
-export const BACKGROUNDS = ['Acolyte', 'Criminel', 'Sage', 'Soldat'];
+/** Historiques du SRD 5.2.1 (règles 2024) : caractéristiques à augmenter, don d'origine, compétences et outil. */
+export type BackgroundInfo = { name: string; abilities: [Ability, Ability, Ability]; feat: string; skills: [SkillKey, SkillKey]; tool: string };
+export const SRD_BACKGROUNDS: BackgroundInfo[] = [
+  { name: 'Acolyte', abilities: ['int', 'sag', 'cha'], feat: 'Initié à la magie (Clerc)', skills: ['perspicacite', 'religion'], tool: 'Matériel de calligraphe' },
+  { name: 'Criminel', abilities: ['dex', 'con', 'int'], feat: 'Vigilant', skills: ['discretion', 'escamotage'], tool: 'Outils de voleur' },
+  { name: 'Sage', abilities: ['con', 'int', 'sag'], feat: 'Initié à la magie (Magicien)', skills: ['arcanes', 'histoire'], tool: 'Matériel de calligraphe' },
+  { name: 'Soldat', abilities: ['for', 'dex', 'con'], feat: 'Sauvagerie martiale', skills: ['athletisme', 'intimidation'], tool: 'Boîte de jeux' },
+];
+export const BACKGROUNDS = SRD_BACKGROUNDS.map((b) => b.name);
+
+export const FEAT_TYPES = ['Origine', 'Général', 'Style de combat', 'Faveur épique'];
+
+export const SENSES = ['Vision dans le noir 18 m', 'Vision dans le noir 36 m', 'Vision aveugle 3 m', 'Perception des vibrations 9 m', 'Vision véritable 36 m'];
 
 export const ALIGNMENTS = [
   'Loyal Bon', 'Neutre Bon', 'Chaotique Bon',

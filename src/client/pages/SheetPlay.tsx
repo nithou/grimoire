@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Bed, BookOpen, Coffee, Dices, Heart, HeartPulse, Minus, Plus, Shield, Skull, Sparkles, Swords, Trash2, Wand2, Backpack, NotebookPen, Star, Zap, LayoutGrid, Drama, Images, Pencil, History, Eye } from 'lucide-react';
+import { Bed, BookOpen, Coffee, Dices, Heart, HeartPulse, Minus, Plus, Shield, Skull, Sparkles, Swords, Trash2, Wand2, Backpack, NotebookPen, Star, Zap, LayoutGrid, Drama, Images, Pencil, History, Eye, Flame, Focus, Undo2, Award } from 'lucide-react';
 import { CharacterLog } from '../components/CharacterLog';
 import { useCharacter } from '../useCharacter';
 import { DiceProvider, DiceTray, ModeSwitch, useDice } from '../dice';
 import type { Character } from '../../shared/schema';
 import { uid, FEATURE_KINDS } from '../../shared/schema';
 import * as R from '../../shared/rules';
-import { ABILITIES, ABILITY_LABELS, COINS, CONDITIONS, SKILLS, FEATURE_KIND_LABELS } from '../../shared/srd-fr';
+import { ABILITIES, ABILITY_LABELS, COINS, CONDITIONS, DAMAGE_TYPES, SKILLS, FEATURE_KIND_LABELS, type Ability } from '../../shared/srd-fr';
+import type { D20Mode } from '../../shared/dice';
 import { Markdown, MarkdownNote, Modal, Num, Pips, Skeleton, Tabs } from '../ui';
 import { Gallery } from '../components/Gallery';
 import { SheetHeader, ToVerifyBanner } from '../components/SheetHeader';
@@ -23,7 +24,7 @@ export default function SheetPlay() {
   if (!h.char) return h.status === 'error' ? <div className="card error">{h.error}</div> : <div className="card"><Skeleton lines={8} /></div>;
   return (
     <DiceProvider characterId={id}>
-      <PlayInner id={id} c={h.char} up={h.update} status={h.status} reload={h.reload} force={h.forceSave} role={h.role} owner={h.owner} />
+      <PlayInner id={id} c={h.char} up={h.update} status={h.status} reload={h.reload} force={h.forceSave} role={h.role} owner={h.owner} undo={h.undo} />
     </DiceProvider>
   );
 }
@@ -31,8 +32,17 @@ export default function SheetPlay() {
 type PlayTab = 'general' | 'inventaire' | 'notes' | 'log';
 const TAB_KEY = 'grimoire.playTab';
 
-function PlayInner({ id, c, up, status, reload, force, role, owner }: { id: string; c: Character; up: Up; status: any; reload: () => void; force: () => void; role: 'owner' | 'dm'; owner: string }) {
+type Undo = { label: string | null; run: () => void };
+
+/** Mode du d20 quand un effet actif donne l'avantage : avantage + désavantage = normal. */
+export function withAdvantage(mode: D20Mode, sources: string[]): D20Mode {
+  if (!sources.length) return mode;
+  return mode === 'disadvantage' ? 'normal' : 'advantage';
+}
+
+function PlayInner({ id, c, up, status, reload, force, role, owner, undo }: { id: string; c: Character; up: Up; status: any; reload: () => void; force: () => void; role: 'owner' | 'dm'; owner: string; undo: Undo }) {
   const dice = useDice();
+  const [concDc, setConcDc] = useState<number | null>(null);
   const pen = R.exhaustionPenalty(c);
   const [srdOpen, setSrdOpen] = useState<string | null>(null);
   const [itemPicker, setItemPicker] = useState<string | null>(null);
@@ -48,9 +58,25 @@ function PlayInner({ id, c, up, status, reload, force, role, owner }: { id: stri
     try { localStorage.setItem(TAB_KEY, t); } catch { /* stockage indisponible */ }
   };
 
-  const check = (label: string, bonus: number) => dice.d20(label, bonus, { penalty: pen });
-  const pp = R.passivePerception(c);
-  const ppAuto = 10 + R.skillBonus(c, 'perception');
+  /** Test d20 ; `adv` = effets actifs qui donnent l'avantage. */
+  const check = (label: string, bonus: number, adv: string[] = []) =>
+    dice.d20(label, bonus, { penalty: pen, mode: withAdvantage(dice.mode, adv), extra: adv.length ? `avantage : ${adv.join(', ')}` : undefined });
+  const advCheck = (a: Ability) => R.effectAdvantage(c, 'check', a);
+  const advSave = (a: Ability) => R.effectAdvantage(c, 'save', a);
+
+  // Annuler : Ctrl/Cmd+Z hors des champs de saisie.
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+      const t = e.target as HTMLElement;
+      if (t.closest('input, textarea, select, [contenteditable]')) return;
+      if (!undo.label) return;
+      e.preventDefault();
+      undo.run();
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [undo]);
 
   return (
     <div>
@@ -71,6 +97,7 @@ function PlayInner({ id, c, up, status, reload, force, role, owner }: { id: stri
           />
           <div className="row" style={{ paddingBottom: 6 }}>
             {c.combat.exhaustion > 0 && <span className="chip warn">Épuisement {c.combat.exhaustion} ({pen})</span>}
+            <button className="btn sm" disabled={!undo.label} onClick={undo.run} title={undo.label ? `Annuler : ${undo.label} (Ctrl+Z)` : 'Rien à annuler'}><Undo2 size={16} /> Annuler</button>
             <button className="btn sm" onClick={() => up((d) => R.shortRest(d))} title="Recharge les ressources « repos court »"><Coffee size={16} /> Repos court</button>
             <button className="btn sm" onClick={() => { if (confirm('Repos long : PV, dés de vie, emplacements et ressources restaurés, épuisement −1. Continuer ?')) up((d) => R.longRest(d)); }}><Bed size={16} /> Repos long</button>
           </div>
@@ -89,28 +116,20 @@ function PlayInner({ id, c, up, status, reload, force, role, owner }: { id: stri
                   const prof = c.savingThrows.includes(a);
                   return (
                     <div key={a} className="stack" style={{ gap: 4, alignItems: 'stretch' }}>
-                      <button className="plate" onClick={() => check(`Test de ${ABILITY_LABELS[a].long}`, m)} title={`Test de ${ABILITY_LABELS[a].long}`}>
+                      <button className={`plate ${advCheck(a).length ? 'adv' : ''}`} onClick={() => check(`Test de ${ABILITY_LABELS[a].long}`, m, advCheck(a))} title={`Test de ${ABILITY_LABELS[a].long}${advCheck(a).length ? ` — avantage (${advCheck(a).join(', ')})` : ''}`}>
                         <div className="lbl">{ABILITY_LABELS[a].short}</div>
                         <div className="big">{fm(m)}</div>
                         <div className="sub">{c.abilities[a]}</div>
                       </button>
-                      <button className={`save-chip ${prof ? 'on' : ''}`} onClick={() => check(`Sauvegarde de ${ABILITY_LABELS[a].long}`, R.saveBonus(c, a))} title="Jet de sauvegarde">
-                        JS {fm(R.saveBonus(c, a))}
+                      <button className={`save-chip ${prof ? 'on' : ''} ${advSave(a).length ? 'adv' : ''}`} onClick={() => check(`Sauvegarde de ${ABILITY_LABELS[a].long}`, R.saveBonus(c, a), advSave(a))} title={`Jet de sauvegarde${advSave(a).length ? ` — avantage (${advSave(a).join(', ')})` : ''}`}>
+                        JS {fm(R.saveBonus(c, a))}{advSave(a).length > 0 && ' ▲'}
                       </button>
                     </div>
                   );
                 })}
               </div>
             </div>
-            <div className="card row spread" style={{ padding: '0.7rem 1rem' }} title="10 + bonus de Perception">
-              <span className="stack" style={{ gap: 2 }}>
-                <span className="field-label row" style={{ gap: 6 }}><Eye size={15} style={{ color: 'var(--accent)' }} /> Perception passive</span>
-                <span className="small muted">
-                  {c.overrides.passivePerception != null && pp !== ppAuto ? `Valeur forcée (calcul : ${ppAuto})` : `10 + Perception (${fm(R.skillBonus(c, 'perception'))})`}
-                </span>
-              </span>
-              <span className="pp-box"><span className="big-num">{pp}</span></span>
-            </div>
+            <SensesCard c={c} />
             <div className="card">
               <h2>Compétences</h2>
               <ul className="list">
@@ -118,10 +137,10 @@ function PlayInner({ id, c, up, status, reload, force, role, owner }: { id: stri
                   const st = c.skills[s.key]?.prof ?? 0;
                   return (
                     <li key={s.key} style={{ padding: '0.1rem 0' }}>
-                      <button className="rollable" onClick={() => check(s.label, R.skillBonus(c, s.key))}>
+                      <button className="rollable" onClick={() => check(s.label, R.skillBonus(c, s.key), advCheck(s.ability))}>
                         <span className={`pip ${st === 2 ? 'on' : st === 1 ? 'half' : ''}`} style={{ cursor: 'inherit' }} title={['Non maîtrisée', 'Maîtrise', 'Expertise'][st]} />
                         <span className="grow">{s.label} <span className="muted small">{ABILITY_LABELS[s.ability].short}</span></span>
-                        <span className="bonus">{fm(R.skillBonus(c, s.key))}</span>
+                        <span className="bonus">{advCheck(s.ability).length > 0 && <span className="adv-mark" title={`Avantage (${advCheck(s.ability).join(', ')})`}>▲ </span>}{fm(R.skillBonus(c, s.key))}</span>
                       </button>
                     </li>
                   );
@@ -135,13 +154,14 @@ function PlayInner({ id, c, up, status, reload, force, role, owner }: { id: stri
           {/* ---------- Colonne 2 : combat ---------- */}
           <div className="stack" style={{ gap: '1rem' }}>
             <div className="stat-strip">
-              <div className="stat" title={c.combat.acNote}><div className="v"><Shield size={16} /> {c.combat.ac}</div><div className="k">Classe d'armure</div></div>
-              <button className="stat" onClick={() => check('Initiative', R.initiative(c))}><div className="v">{fm(R.initiative(c))}</div><div className="k">Initiative</div></button>
+              <div className={`stat ${R.armorClass(c) !== c.combat.ac ? 'boosted' : ''}`} title={[c.combat.acNote, R.armorClass(c) !== c.combat.ac ? `${c.combat.ac} ${fm(R.armorClass(c) - c.combat.ac)} (effets actifs)` : ''].filter(Boolean).join(' — ')}><div className="v"><Shield size={16} /> {R.armorClass(c)}</div><div className="k">Classe d'armure</div></div>
+              <button className="stat" onClick={() => check('Initiative', R.initiative(c), advCheck('dex'))}><div className="v">{fm(R.initiative(c))}</div><div className="k">Initiative</div></button>
               <div className="stat"><div className="v">{R.speed(c)} m</div><div className="k">Vitesse</div></div>
               <div className="stat"><div className="v">{fm(R.proficiencyBonus(c))}</div><div className="k">Maîtrise</div></div>
             </div>
             <InspirationBar c={c} up={up} />
-            <HpCard c={c} up={up} />
+            <EffectsCard c={c} up={up} concDc={concDc} setConcDc={setConcDc} />
+            <HpCard c={c} up={up} onDamaged={(n) => { if (c.combat.concentration && n > 0) setConcDc(R.concentrationDC(n)); }} />
             <DeathSavesCard c={c} up={up} />
             <AttacksCard c={c} up={up} />
             <SpellsCard c={c} up={up} onOpen={setSrdOpen} />
@@ -159,7 +179,8 @@ function PlayInner({ id, c, up, status, reload, force, role, owner }: { id: stri
               </div>
               <DiceTray />
             </div>
-            <FeaturesCard c={c} />
+            <FeaturesCard c={c} category="feature" />
+            <FeaturesCard c={c} category="feat" />
           </div>
         </div>
       )}
@@ -208,6 +229,144 @@ function InspirationBar({ c, up }: { c: Character; up: Up }) {
         <button className="btn sm" disabled={n <= 0} onClick={() => up((d) => { d.combat.heroicInspiration = Math.max(0, d.combat.heroicInspiration - 1); })}><Minus size={14} /> Dépenser</button>
         <button className="btn sm icon" onClick={() => up((d) => { d.combat.heroicInspiration += 1; })} aria-label="Gagner un point d'Inspiration"><Plus size={14} /></button>
       </span>
+    </div>
+  );
+}
+
+function SensesCard({ c }: { c: Character }) {
+  const pp = R.passivePerception(c);
+  const ppAuto = 10 + R.skillBonus(c, 'perception');
+  const rows: [string, number, string][] = [
+    ['Perception', pp, c.overrides.passivePerception != null && pp !== ppAuto ? `Valeur forcée (calcul : ${ppAuto})` : `10 + Perception (${fm(R.skillBonus(c, 'perception'))})`],
+    ['Perspicacité', R.passiveSkill(c, 'perspicacite'), `10 + Perspicacité (${fm(R.skillBonus(c, 'perspicacite'))})`],
+    ['Investigation', R.passiveSkill(c, 'investigation'), `10 + Investigation (${fm(R.skillBonus(c, 'investigation'))})`],
+  ];
+  return (
+    <div className="card stack" style={{ padding: '0.7rem 1rem', gap: 8 }}>
+      <span className="field-label row" style={{ gap: 6 }}><Eye size={15} style={{ color: 'var(--accent)' }} /> Valeurs passives & sens</span>
+      <div className="passives">
+        {rows.map(([k, v, t]) => (
+          <div key={k} className="passive" title={t}>
+            <span className={k === 'Perception' ? 'pp-box' : 'pp-box sm'}><span className="big-num">{v}</span></span>
+            <span className="small">{k}</span>
+          </div>
+        ))}
+      </div>
+      {c.senses.length > 0 && <div className="row small" style={{ gap: 4 }}>{c.senses.map((x) => <span key={x} className="chip">{x}</span>)}</div>}
+    </div>
+  );
+}
+
+/** Résumé des résistances, immunités et vulnérabilités (permanentes + effets actifs). */
+function DefensesLine({ c }: { c: Character }) {
+  const d = R.damageDefenses(c);
+  const fx = new Set(R.activeEffects(c).flatMap((e) => e.resistances));
+  const parts: [string, string[]][] = [['Résistances', d.resistances], ['Immunités', d.immunities], ['Vulnérabilités', d.vulnerabilities], ['Immunités (états)', c.defenses.conditionImmunities]];
+  if (parts.every(([, v]) => !v.length)) return null;
+  return (
+    <div className="small stack" style={{ gap: 2 }}>
+      {parts.filter(([, v]) => v.length).map(([k, v]) => (
+        <div key={k}><span className="muted">{k} :</span> {v.map((x, i) => <span key={x}>{i > 0 && ', '}<span className={fx.has(x) && !c.defenses.resistances.includes(x) && k === 'Résistances' ? 'fx' : ''}>{x}</span></span>)}</div>
+      ))}
+    </div>
+  );
+}
+
+/** Effets activables (Rage, Témérité…) et concentration. */
+function EffectsCard({ c, up, concDc, setConcDc }: { c: Character; up: Up; concDc: number | null; setConcDc: (n: number | null) => void }) {
+  const dice = useDice();
+  const [draft, setDraft] = useState('');
+  const active = R.activeEffects(c);
+  const conc = c.combat.concentration;
+  if (!c.effects.length && !conc && !c.spellcasting.spells.some((s) => s.concentration)) {
+    // Rien à suivre : on garde une ligne discrète pour une concentration ponctuelle (parchemin, objet).
+    return (
+      <form className="card row small" style={{ padding: '0.5rem 0.9rem', flexWrap: 'nowrap' }} onSubmit={(e) => { e.preventDefault(); if (draft.trim()) { up((d) => { d.combat.concentration = draft.trim(); }); setDraft(''); } }}>
+        <Focus size={16} className="muted" />
+        <input className="grow" style={{ width: 'auto' }} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Concentration (parchemin, objet…)" aria-label="Se concentrer sur" />
+        <button className="btn sm" type="submit" disabled={!draft.trim()}>Commencer</button>
+      </form>
+    );
+  }
+  const describe = (e: Character['effects'][number]) => {
+    const p: string[] = [];
+    if (e.acBonus) p.push(`CA ${fm(e.acBonus)}`);
+    if (e.toHitBonus) p.push(`toucher ${fm(e.toHitBonus)}`);
+    if (e.damageBonus) p.push(`dégâts ${fm(e.damageBonus)}${e.strOnly ? ' (FOR)' : ''}`);
+    if (e.saveBonus) p.push(`JS ${fm(e.saveBonus)}`);
+    if (e.advAttacks) p.push(`avantage aux attaques${e.strOnly ? ' (FOR)' : ''}`);
+    if (e.advChecks.length) p.push(`avantage aux tests de ${e.advChecks.map((a) => ABILITY_LABELS[a].short).join(', ')}`);
+    if (e.advSaves.length) p.push(`avantage aux JS de ${e.advSaves.map((a) => ABILITY_LABELS[a].short).join(', ')}`);
+    if (e.resistances.length) p.push(`résistance : ${e.resistances.join(', ')}`);
+    return p.join(' · ');
+  };
+  const rollConc = () => {
+    const dc = concDc ?? 10;
+    const adv = R.effectAdvantage(c, 'save', 'con');
+    dice.d20(`Concentration (DD ${dc})`, R.saveBonus(c, 'con'), {
+      penalty: R.exhaustionPenalty(c),
+      mode: withAdvantage(dice.mode, adv),
+      onResult: (_nat, total) => {
+        setConcDc(null);
+        return total >= dc
+          ? { note: `Réussite : la concentration sur « ${conc} » est maintenue.` }
+          : { note: `Échec : la concentration sur « ${conc} » est rompue.`, action: { label: 'Mettre fin à la concentration', run: () => up((d) => { d.combat.concentration = ''; }) } };
+      },
+    });
+  };
+  return (
+    <div className={`card stack ${active.length ? 'effects-on' : ''}`}>
+      <div className="card-title">
+        <h2><Flame size={18} /> Effets actifs</h2>
+        {active.length > 0 && <button className="btn ghost sm" onClick={() => up((d) => { for (const e of d.effects) e.active = false; })}>Tout terminer</button>}
+      </div>
+      {c.effects.length > 0 && (
+        <div className="row">
+          {c.effects.map((e) => {
+            const res = e.resourceId ? c.resources.find((r) => r.id === e.resourceId) : undefined;
+            return (
+              <button key={e.id} className={`chip effect ${e.active ? 'on' : ''}`} aria-pressed={e.active} title={describe(e)}
+                onClick={() => {
+                  const r = R.toggleEffect(c, e.id);
+                  if (r.warning && !confirm(`${r.warning} Activer quand même ?`)) return;
+                  up(() => r.char);
+                }}>
+                {e.name || 'Effet'}{res && <span className="muted"> · {res.max - res.used}/{res.max}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {active.map((e) => (
+        <div key={e.id} className="small effect-detail">
+          <strong>{e.name}</strong>{describe(e) && <> — {describe(e)}</>}
+          {e.notes && <div className="muted"><Markdown compact text={e.notes} /></div>}
+        </div>
+      ))}
+      <div className={`conc-row ${conc ? 'on' : ''}`}>
+        <Focus size={16} />
+        {conc ? (
+          <>
+            <span className="grow">Concentration : <strong>{conc}</strong></span>
+            <button className="btn sm" onClick={rollConc} title="JdS de Constitution pour maintenir la concentration">JdS CON{concDc ? ` DD ${concDc}` : ''}</button>
+            <button className="btn ghost sm" onClick={() => { setConcDc(null); up((d) => { d.combat.concentration = ''; }); }}>Terminer</button>
+          </>
+        ) : (
+          <form className="row grow" style={{ flexWrap: 'nowrap' }} onSubmit={(e) => { e.preventDefault(); if (draft.trim()) { up((d) => { d.combat.concentration = draft.trim(); }); setDraft(''); } }}>
+            <input className="grow" style={{ width: 'auto' }} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Pas de concentration" aria-label="Se concentrer sur" />
+            <button className="btn sm" type="submit" disabled={!draft.trim()}>Commencer</button>
+          </form>
+        )}
+      </div>
+      {conc && concDc != null && (
+        <div className="banner small row spread">
+          <span>Dégâts subis : JdS de Constitution <strong>DD {concDc}</strong> pour maintenir la concentration.</span>
+          <span className="row" style={{ gap: 4 }}>
+            <button className="btn sm primary" onClick={rollConc}><Dices size={14} /> Lancer</button>
+            <button className="btn ghost sm" onClick={() => setConcDc(null)}>Ignorer</button>
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -279,9 +438,12 @@ function PersonalityCard({ c }: { c: Character }) {
 }
 
 // ---------------------------------------------------------------------------
-function HpCard({ c, up }: { c: Character; up: Up }) {
+function HpCard({ c, up, onDamaged }: { c: Character; up: Up; onDamaged: (taken: number) => void }) {
   const dice = useDice();
   const [amt, setAmt] = useState<number | null>(null);
+  const [dmgType, setDmgType] = useState('');
+  const [lastNote, setLastNote] = useState('');
+  const defs = R.damageDefenses(c);
   const { hpCurrent, hpMax, hpTemp } = c.combat;
   const pct = Math.max(0, Math.min(100, (hpCurrent / Math.max(1, hpMax)) * 100));
   const n = amt ?? 0;
@@ -314,10 +476,28 @@ function HpCard({ c, up }: { c: Character; up: Up }) {
       {hpCurrent <= hpMax / 2 && hpCurrent > 0 && <span className="chip warn" style={{ alignSelf: 'flex-start' }}>En sang</span>}
       <div className="row" style={{ flexWrap: 'nowrap' }}>
         <div style={{ width: 90 }}><Num value={amt} onChange={setAmt} min={0} nullable placeholder="PV" /></div>
-        <button className="btn sm danger" disabled={!n} onClick={() => { up((d) => R.applyDamage(d, n)); setAmt(null); }}><Minus size={16} /> Dégâts</button>
+        <button className="btn sm danger" disabled={!n} onClick={() => {
+          const adj = R.adjustDamage(c, n, dmgType);
+          up((d) => R.applyDamage(d, adj.amount));
+          setLastNote(adj.note ? `${adj.note}${adj.amount ? ` : ${adj.amount} dégâts subis` : ''}.` : '');
+          onDamaged(adj.amount);
+          setAmt(null);
+        }}><Minus size={16} /> Dégâts</button>
         <button className="btn sm" disabled={!n} onClick={() => { up((d) => R.applyHealing(d, n)); setAmt(null); }} style={{ color: 'var(--success)', borderColor: 'var(--success)' }}><Plus size={16} /> Soins</button>
         <button className="btn sm teal" disabled={!n} onClick={() => { up((d) => R.setTempHp(d, n)); setAmt(null); }} title="PV temporaires">Temp.</button>
       </div>
+      <div className="row small" style={{ flexWrap: 'nowrap' }}>
+        <span className="muted">Type de dégâts</span>
+        <select style={{ width: 'auto' }} value={dmgType} onChange={(e) => setDmgType(e.target.value)} aria-label="Type de dégâts">
+          <option value="">— (aucun ajustement)</option>
+          {DAMAGE_TYPES.map((t) => {
+            const tag = defs.immunities.includes(t) ? ' (immunité)' : defs.resistances.includes(t) ? ' (résistance)' : defs.vulnerabilities.includes(t) ? ' (vulnérabilité)' : '';
+            return <option key={t} value={t}>{t}{tag}</option>;
+          })}
+        </select>
+      </div>
+      {lastNote && <div className="small" style={{ color: 'var(--info)' }}>{lastNote}</div>}
+      <DefensesLine c={c} />
       {c.combat.hitDice.length > 0 && (
         <div className="row small">
           <HeartPulse size={16} /> Dés de vie :
@@ -359,8 +539,10 @@ function AttacksCard({ c, up }: { c: Character; up: Up }) {
                     </span>
                   )}
                 </span>
-                <button className="btn sm mono" onClick={() => dice.d20(`Attaque : ${a.name}`, hit, {
+                <button className={`btn sm mono ${R.effectAdvantage(c, 'attack', a).length ? 'adv' : ''}`} onClick={() => dice.d20(`Attaque : ${a.name}`, hit, {
                   penalty: pen,
+                  mode: withAdvantage(dice.mode, R.effectAdvantage(c, 'attack', a)),
+                  extra: R.effectAdvantage(c, 'attack', a).length ? `avantage : ${R.effectAdvantage(c, 'attack', a).join(', ')}` : undefined,
                   onResult: (nat) => ({
                     action: nat === 20
                       ? { label: `Dégâts critiques (${dmg})`, run: () => dice.damage(a.name, dmg, true) }
@@ -414,7 +596,17 @@ function SpellsCard({ c, up, onOpen }: { c: Character; up: Up; onOpen: (id: stri
                   <input type="checkbox" checked={s.prepared || s.alwaysPrepared} disabled={s.alwaysPrepared} title="Préparé" aria-label={`Préparer ${s.name}`}
                     onChange={(e) => up((d) => { d.spellcasting.spells.find((x) => x.id === s.id)!.prepared = e.target.checked; })} />
                 )}
-                <span className="grow" style={{ opacity: l > 0 && !s.prepared && !s.alwaysPrepared ? 0.6 : 1 }}>{s.name} {s.notes && <span className="small muted">— {s.notes}</span>}</span>
+                <span className="grow" style={{ opacity: l > 0 && !s.prepared && !s.alwaysPrepared ? 0.6 : 1 }}>
+                  {s.name} {s.concentration && <span className="chip" title="Concentration">C</span>} {s.notes && <span className="small muted">— {s.notes}</span>}
+                </span>
+                {s.concentration && (
+                  <button className={`btn ghost sm icon ${c.combat.concentration === s.name ? 'on' : ''}`} title={c.combat.concentration === s.name ? 'Concentration en cours' : 'Se concentrer sur ce sort'} aria-label={`Se concentrer sur ${s.name}`}
+                    onClick={() => {
+                      if (c.combat.concentration === s.name) return;
+                      if (c.combat.concentration && !confirm(`Mettre fin à la concentration sur « ${c.combat.concentration} » ?`)) return;
+                      up((d) => { d.combat.concentration = s.name; });
+                    }}><Focus size={15} /></button>
+                )}
                 {s.srdName && <button className="btn ghost sm icon" onClick={() => onOpen(s.srdName)} aria-label={`Description de ${s.name}`} title="Description"><BookOpen size={15} /></button>}
               </li>
             ))}
@@ -496,7 +688,7 @@ function InventoryCard({ c, up, onSrd }: { c: Character; up: Up; onSrd: (box: st
         <div className="card small stack">
           <h2>Charge</h2>
           <div><span className="big-num">{R.carriedWeight(c)}</span> <span className="muted">/ {R.carryingCapacity(c)} kg</span></div>
-          <div className="muted">Objets harmonisés : {c.inventory.filter((i) => i.attuned).length}/3</div>
+          <div className={R.attunedCount(c) > R.MAX_ATTUNED ? 'error' : 'muted'}>Objets harmonisés : {R.attunedCount(c)}/{R.MAX_ATTUNED}{R.attunedCount(c) > R.MAX_ATTUNED && ' (maximum dépassé)'}</div>
         </div>
       </div>
       <div className="stack" style={{ gap: '1rem' }}>
@@ -587,16 +779,17 @@ function ContainerCard({ c, up, box, onSrd }: { c: Character; up: Up; box: { id:
   );
 }
 
-function FeaturesCard({ c }: { c: Character }) {
-  if (!c.features.length) return null;
+function FeaturesCard({ c, category }: { c: Character; category: 'feature' | 'feat' }) {
+  const list = c.features.filter((f) => f.category === category);
+  if (!list.length) return null;
   return (
     <div className="card">
-      <h2>Aptitudes</h2>
+      <h2>{category === 'feat' ? <><Award size={18} /> Dons</> : 'Aptitudes'}</h2>
       <ul className="list">
-        {[...c.features].sort((x, y) => FEATURE_KINDS.indexOf(x.kind) - FEATURE_KINDS.indexOf(y.kind)).map((f) => (
+        {list.sort((x, y) => FEATURE_KINDS.indexOf(x.kind) - FEATURE_KINDS.indexOf(y.kind)).map((f) => (
           <li key={f.id}>
             <details>
-              <summary style={{ cursor: 'pointer' }}><span className={`chip kind-${f.kind}`}>{FEATURE_KIND_LABELS[f.kind]}</span> {f.name} {f.source && <span className="small muted">— {f.source}</span>}</summary>
+              <summary style={{ cursor: 'pointer' }}><span className={`chip kind-${f.kind}`}>{FEATURE_KIND_LABELS[f.kind]}</span> {f.name} {(f.featType || f.source) && <span className="small muted">— {[f.featType, f.source].filter(Boolean).join(' · ')}</span>}</summary>
               {f.description && <div className="small" style={{ marginTop: 4 }}><Markdown text={f.description} /></div>}
             </details>
           </li>

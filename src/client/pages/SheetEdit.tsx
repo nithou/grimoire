@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { BookOpen, Backpack, Image, NotebookPen, ScrollText, Shield, Sparkles, User, Wand2, RefreshCw, Plus, Trash2, Crown, History, Eye } from 'lucide-react';
+import { BookOpen, Backpack, Image, NotebookPen, ScrollText, Shield, Sparkles, User, Wand2, RefreshCw, Plus, Trash2, Crown, History, Eye, Flame, ShieldHalf, Award, Compass } from 'lucide-react';
 import { CharacterLog } from '../components/CharacterLog';
 import { SharePanel } from '../components/SharePanel';
 import { useCharacter } from '../useCharacter';
-import type { Character, AttackT, ItemT, SpellT, ResourceT, FeatureT } from '../../shared/schema';
+import type { Character, AttackT, ItemT, SpellT, ResourceT, FeatureT, EffectT } from '../../shared/schema';
 import { FEATURE_KINDS } from '../../shared/schema';
 import { uid } from '../../shared/schema';
 import {
   FEATURE_KIND_LABELS, ABILITIES, ABILITY_LABELS, ALIGNMENTS, BACKGROUNDS, CLASSES, CONDITIONS, DAMAGE_TYPES, SKILLS, SPECIES, WEAPON_MASTERIES, findClass, COINS,
+  SRD_BACKGROUNDS, FEAT_TYPES, SENSES, norm, type Ability,
 } from '../../shared/srd-fr';
+import { api } from '../api';
 import * as R from '../../shared/rules';
 import { DataList, Field, ListEditor, MD_HINT, Num, Select, Skeleton, Tabs, TagInput, Text, TextArea } from '../ui';
 
@@ -100,6 +102,7 @@ function IdentityTab({ c, up }: { c: Character; up: Up }) {
         <DataList id="dl-species" options={SPECIES} />
         <DataList id="dl-bg" options={BACKGROUNDS} />
         <DataList id="dl-align" options={ALIGNMENTS} />
+        <OriginHelper c={c} up={up} />
       </div>
       <div className="stack" style={{ gap: '1rem' }}>
         <div className="card stack">
@@ -135,6 +138,55 @@ function IdentityTab({ c, up }: { c: Character; up: Up }) {
   );
 }
 
+/** Historique du SRD 2024 : rappel de ce qu'il apporte et application en un clic. */
+function OriginHelper({ c, up }: { c: Character; up: Up }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  const bg = SRD_BACKGROUNDS.find((b) => norm(b.name) === norm(c.identity.background));
+  if (!bg) return null;
+  const skillLabel = (k: string) => SKILLS.find((s) => s.key === k)!.label;
+  const hasFeat = c.features.some((f) => norm(f.name) === norm(bg.feat));
+  const missingSkills = bg.skills.filter((k) => !(c.skills[k]?.prof));
+  const missingTool = !c.proficiencies.tools.some((t) => norm(t) === norm(bg.tool));
+  const todo = !hasFeat || missingSkills.length > 0 || missingTool;
+
+  const apply = async () => {
+    setBusy(true);
+    setMsg('');
+    let feat: FeatureT | null = null;
+    if (!hasFeat) {
+      try {
+        const r = await api.srdSearch({ q: bg.feat.replace(/\s*\(.*\)$/, ''), type: 'feat', lang: 'fr', limit: 5 });
+        const hit = r.results.find((x) => norm(bg.feat).startsWith(norm(x.name)));
+        if (hit) feat = srdToFeature(await api.srdEntry(hit.id));
+      } catch { /* hors ligne : don ajouté sans description */ }
+      feat = feat ? { ...feat, name: bg.feat } : { id: uid(), name: bg.feat, source: '', description: '', kind: 'passive', category: 'feat', featType: 'Origine' };
+      feat.source = `Historique : ${bg.name}`;
+    }
+    up((d) => {
+      for (const k of bg.skills) d.skills[k] = { prof: Math.max(1, d.skills[k]?.prof ?? 0) as 1 | 2, bonus: d.skills[k]?.bonus ?? 0 };
+      if (missingTool) d.proficiencies.tools.push(bg.tool);
+      if (feat) d.features.push(feat);
+    });
+    setBusy(false);
+    setMsg('Appliqué. Pensez aux valeurs de caractéristique (onglet Caractéristiques).');
+  };
+
+  return (
+    <div className="banner stack" style={{ gap: 6 }}>
+      <strong className="row" style={{ gap: 6 }}><Award size={16} /> Historique « {bg.name} » (règles 2024)</strong>
+      <div className="small">
+        <div>Caractéristiques : +2 à l'une et +1 à une autre, ou +1 aux trois : <strong>{bg.abilities.map((a) => ABILITY_LABELS[a].long).join(', ')}</strong></div>
+        <div>Don d'origine : <strong>{bg.feat}</strong>{hasFeat && ' ✓'}</div>
+        <div>Compétences : {bg.skills.map(skillLabel).join(' et ')}{missingSkills.length === 0 && ' ✓'}</div>
+        <div>Outil : {bg.tool}{!missingTool && ' ✓'}</div>
+      </div>
+      {todo && <button className="btn sm" style={{ alignSelf: 'flex-start' }} disabled={busy} onClick={apply}>Ajouter le don, les compétences et l'outil</button>}
+      {msg && <div className="small muted">{msg}</div>}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 function StatsTab({ c, up }: { c: Character; up: Up }) {
   const classSaves = c.classes[0] ? findClass(c.classes[0].name)?.saves : undefined;
@@ -165,7 +217,7 @@ function StatsTab({ c, up }: { c: Character; up: Up }) {
           )}
         </div>
         <div className="card stack">
-          <h2><Eye size={18} /> Perception passive</h2>
+          <h2><Eye size={18} /> Sens & perception passive</h2>
           <div className="row" style={{ alignItems: 'flex-end', gap: '1rem' }}>
             <div className="pp-box"><span className="big-num">{R.passivePerception(c)}</span></div>
             <Field label={`Valeur (vide = calcul : ${10 + R.skillBonus(c, 'perception')})`} className="grow">
@@ -176,6 +228,12 @@ function StatsTab({ c, up }: { c: Character; up: Up }) {
             )}
           </div>
           <p className="small muted" style={{ margin: 0 }}>Calcul : 10 + bonus de Perception ({fm(R.skillBonus(c, 'perception'))}).</p>
+          <div className="small muted">
+            Perspicacité passive {R.passiveSkill(c, 'perspicacite')} · Investigation passive {R.passiveSkill(c, 'investigation')}
+          </div>
+          <Field label="Sens spéciaux">
+            <TagInput value={c.senses} onChange={(v) => up((d) => { d.senses = v; })} placeholder="ex. Vision dans le noir 18 m" suggestions={SENSES} />
+          </Field>
         </div>
         <div className="card stack">
           <h3>Valeurs forcées</h3>
@@ -326,9 +384,112 @@ function CombatTab({ c, up }: { c: Character; up: Up }) {
           <DataList id="dl-dmg" options={DAMAGE_TYPES} />
           <DataList id="dl-mastery" options={WEAPON_MASTERIES.map((m) => m.label)} />
         </div>
+        <EffectsEditor c={c} up={up} />
+        <DefensesCard c={c} up={up} />
         <ResourcesCard c={c} up={up} />
       </div>
       {picker && <SrdPicker title="Ajouter une arme du SRD" types={['weapon']} onClose={() => setPicker(false)} onPick={(e) => up((d) => { d.attacks.push(srdToAttack(e)); })} />}
+    </div>
+  );
+}
+
+function DefensesCard({ c, up }: { c: Character; up: Up }) {
+  const set = (k: keyof Character['defenses'], v: string[]) => up((d) => { d.defenses[k] = v; });
+  return (
+    <div className="card stack">
+      <h2><ShieldHalf size={18} /> Résistances & immunités</h2>
+      <p className="small muted" style={{ margin: 0 }}>Permanentes (espèce, objet, aptitude). En jeu, choisir le type de dégâts les applique : résistance = moitié, vulnérabilité = double.</p>
+      <Field label="Résistances"><TagInput value={c.defenses.resistances} onChange={(v) => set('resistances', v)} placeholder="Résistance à…" suggestions={DAMAGE_TYPES} /></Field>
+      <Field label="Immunités (dégâts)"><TagInput value={c.defenses.immunities} onChange={(v) => set('immunities', v)} placeholder="Immunité aux dégâts…" suggestions={DAMAGE_TYPES} /></Field>
+      <Field label="Vulnérabilités"><TagInput value={c.defenses.vulnerabilities} onChange={(v) => set('vulnerabilities', v)} placeholder="Vulnérabilité à…" suggestions={DAMAGE_TYPES} /></Field>
+      <Field label="Immunités (états)"><TagInput value={c.defenses.conditionImmunities} onChange={(v) => set('conditionImmunities', v)} placeholder="Immunité à l'état…" suggestions={CONDITIONS} /></Field>
+    </div>
+  );
+}
+
+/** Bonus de dégâts de Rage selon le niveau de Barbare (2024). */
+const rageDamage = (lvl: number) => (lvl >= 16 ? 4 : lvl >= 9 ? 3 : 2);
+
+const EFFECT_PRESETS: { name: string; make: (c: Character) => Omit<EffectT, 'id'> }[] = [
+  {
+    name: 'Rage',
+    make: (c) => ({
+      name: 'Rage', active: false,
+      resourceId: c.resources.find((r) => norm(r.name).startsWith('rage'))?.id ?? '',
+      acBonus: 0, toHitBonus: 0, saveBonus: 0, advAttacks: false,
+      damageBonus: rageDamage(c.classes.find((k) => norm(k.name) === 'barbare')?.level ?? 1), strOnly: true,
+      advChecks: ['for'], advSaves: ['for'], resistances: ['Contondant', 'Perforant', 'Tranchant'],
+      notes: "Sans armure lourde. Prend fin si tu es neutralisé, ou si ton tour se termine sans avoir attaqué, forcé un JdS ni prolongé la rage par une action bonus. Pas de sorts ni de concentration.",
+    }),
+  },
+  {
+    name: 'Témérité',
+    make: () => ({
+      name: 'Témérité', active: false, resourceId: '', acBonus: 0, toHitBonus: 0, damageBonus: 0, saveBonus: 0,
+      strOnly: true, advAttacks: true, advChecks: [], advSaves: [], resistances: [],
+      notes: "Les attaques contre toi ont l'avantage jusqu'au début de ton prochain tour.",
+    }),
+  },
+  {
+    name: 'Bouclier de la foi',
+    make: () => ({
+      name: 'Bouclier de la foi', active: false, resourceId: '', acBonus: 2, toHitBonus: 0, damageBonus: 0, saveBonus: 0,
+      strOnly: false, advAttacks: false, advChecks: [], advSaves: [], resistances: [], notes: 'Sort de concentration, 10 minutes.',
+    }),
+  },
+];
+
+function AbilityToggles({ value, onChange }: { value: Ability[]; onChange: (v: Ability[]) => void }) {
+  return (
+    <span className="row" style={{ gap: 4 }}>
+      {ABILITIES.map((a) => (
+        <button key={a} type="button" className={`chip ${value.includes(a) ? 'on' : ''}`} aria-pressed={value.includes(a)}
+          onClick={() => onChange(value.includes(a) ? value.filter((x) => x !== a) : [...value, a])}>{ABILITY_LABELS[a].short}</button>
+      ))}
+    </span>
+  );
+}
+
+function EffectsEditor({ c, up }: { c: Character; up: Up }) {
+  const blank = (): Omit<EffectT, 'id'> => ({ name: '', notes: '', active: false, resourceId: '', acBonus: 0, toHitBonus: 0, damageBonus: 0, saveBonus: 0, strOnly: false, advChecks: [], advSaves: [], advAttacks: false, resistances: [] });
+  return (
+    <div className="card stack">
+      <h2><Flame size={18} /> Effets activables</h2>
+      <p className="small muted" style={{ margin: 0 }}>Rage, Témérité, sorts reçus… En vue Jeu, un clic les active : les bonus et l'avantage s'appliquent aux jets, et ils prennent fin au repos.</p>
+      <ListEditor<EffectT>
+        items={c.effects}
+        onChange={(v) => up((d) => { d.effects = v; })}
+        make={blank}
+        addLabel="Effet vierge"
+        extraActions={EFFECT_PRESETS.filter((p) => !c.effects.some((e) => norm(e.name) === norm(p.name))).map((p) => (
+          <button key={p.name} className="btn sm" onClick={() => up((d) => { d.effects.push({ ...p.make(d), id: uid() }); })}><Plus size={14} /> {p.name}</button>
+        ))}
+        render={(e, set) => (
+          <div className="stack">
+            <div className="grid g3">
+              <Field label="Nom"><Text value={e.name} onChange={(v) => set({ name: v })} /></Field>
+              <Field label="Dépense à l'activation">
+                <select value={e.resourceId} onChange={(ev) => set({ resourceId: ev.target.value })}>
+                  <option value="">—</option>
+                  {c.resources.map((r) => <option key={r.id} value={r.id}>{r.name || 'Ressource'}</option>)}
+                </select>
+              </Field>
+              <Field label="Bonus à la CA"><Num value={e.acBonus} onChange={(v) => set({ acBonus: v ?? 0 })} /></Field>
+              <Field label="Bonus au toucher"><Num value={e.toHitBonus} onChange={(v) => set({ toHitBonus: v ?? 0 })} /></Field>
+              <Field label="Bonus aux dégâts"><Num value={e.damageBonus} onChange={(v) => set({ damageBonus: v ?? 0 })} /></Field>
+              <Field label="Bonus aux JS"><Num value={e.saveBonus} onChange={(v) => set({ saveBonus: v ?? 0 })} /></Field>
+            </div>
+            <div className="row small" style={{ gap: 12 }}>
+              <label className="row"><input type="checkbox" checked={e.advAttacks} onChange={(ev) => set({ advAttacks: ev.target.checked })} /> Avantage aux attaques</label>
+              <label className="row"><input type="checkbox" checked={e.strOnly} onChange={(ev) => set({ strOnly: ev.target.checked })} /> Seulement les attaques de Force (dégâts et avantage)</label>
+            </div>
+            <div className="row small"><span style={{ minWidth: 150 }}>Avantage aux tests</span><AbilityToggles value={e.advChecks} onChange={(v) => set({ advChecks: v })} /></div>
+            <div className="row small"><span style={{ minWidth: 150 }}>Avantage aux JS</span><AbilityToggles value={e.advSaves} onChange={(v) => set({ advSaves: v })} /></div>
+            <Field label="Résistances pendant l'effet"><TagInput value={e.resistances} onChange={(v) => set({ resistances: v })} placeholder={`Résistance (${e.name || 'effet'})`} suggestions={DAMAGE_TYPES} /></Field>
+            <Field label={<>Rappel affiché en jeu <MdHint /></>}><TextArea rows={2} value={e.notes} onChange={(v) => set({ notes: v })} /></Field>
+          </div>
+        )}
+      />
     </div>
   );
 }
@@ -393,7 +554,7 @@ function SpellsTab({ c, up }: { c: Character; up: Up }) {
         <ListEditor<SpellT>
           items={c.spellcasting.spells}
           onChange={(v) => up((d) => { d.spellcasting.spells = v; })}
-          make={() => ({ name: '', level: 0, prepared: false, alwaysPrepared: false, srdName: '', notes: '' })}
+          make={() => ({ name: '', level: 0, prepared: false, alwaysPrepared: false, srdName: '', notes: '', concentration: false })}
           render={(s, set) => (
             <div className="stack">
               <div className="grid g3">
@@ -404,6 +565,7 @@ function SpellsTab({ c, up }: { c: Character; up: Up }) {
               <div className="row small">
                 <label className="row"><input type="checkbox" checked={s.prepared} onChange={(e) => set({ prepared: e.target.checked })} /> Préparé</label>
                 <label className="row"><input type="checkbox" checked={s.alwaysPrepared} onChange={(e) => set({ alwaysPrepared: e.target.checked })} /> Toujours préparé</label>
+                <label className="row"><input type="checkbox" checked={s.concentration} onChange={(e) => set({ concentration: e.target.checked })} /> Concentration</label>
                 {s.srdName && <span className="chip">SRD</span>}
               </div>
             </div>
@@ -503,7 +665,7 @@ function InventoryTab({ c, up }: { c: Character; up: Up }) {
           <Plus size={16} /> Nouveau contenant
         </button>
         <div className="small muted">
-          Charge totale : {R.carriedWeight(c)} kg / {R.carryingCapacity(c)} kg · Objets harmonisés : {c.inventory.filter((i) => i.attuned).length}/3
+          Charge totale : {R.carriedWeight(c)} kg / {R.carryingCapacity(c)} kg · <span className={R.attunedCount(c) > R.MAX_ATTUNED ? 'error' : ''}>Objets harmonisés : {R.attunedCount(c)}/{R.MAX_ATTUNED}</span>
         </div>
       </div>
       {picker != null && <SrdPicker title="Ajouter un objet du SRD" types={['gear', 'tool', 'weapon', 'armor', 'magic-item']} onClose={() => setPicker(null)} onPick={(e) => up((d) => { d.inventory.push({ ...srdToItem(e), containerId: picker }); })} />}
@@ -542,28 +704,47 @@ function ProfileTab({ c, up }: { c: Character; up: Up }) {
         </div>
       </div>
       <div className="stack" style={{ gap: '1rem' }}>
-        <div className="card stack">
-          <div className="card-title"><h2>Aptitudes & dons</h2><button className="btn sm" onClick={() => setPicker(true)}><BookOpen size={16} /> Don du SRD</button></div>
-          <ListEditor<FeatureT>
-            items={c.features}
-            onChange={(v) => up((d) => { d.features = v; })}
-            make={() => ({ name: '', source: '', description: '', kind: 'other' as const })}
-            render={(f, set) => (
-              <div className="stack">
-                <div className="grid g3">
-                  <Field label="Nom"><Text value={f.name} onChange={(v) => set({ name: v })} /></Field>
-                  <Field label="Type">
-                    <Select value={f.kind} onChange={(v) => set({ kind: v })} options={FEATURE_KINDS.map((k) => ({ value: k, label: FEATURE_KIND_LABELS[k] }))} />
-                  </Field>
-                  <Field label="Source"><Text value={f.source} onChange={(v) => set({ source: v })} placeholder="Classe, espèce, don…" /></Field>
-                </div>
-                <Field label={<>Description <MdHint /></>}><TextArea rows={3} value={f.description} onChange={(v) => set({ description: v })} /></Field>
-              </div>
-            )}
-          />
-        </div>
+        <FeatureList c={c} up={up} category="feature" title="Aptitudes" hint="Classe, sous-classe, espèce, objets…" />
+        <FeatureList c={c} up={up} category="feat" title="Dons" hint="Don d'origine (historique), dons généraux, style de combat…" onSrd={() => setPicker(true)} />
       </div>
       {picker && <SrdPicker title="Ajouter un don du SRD" types={['feat']} onClose={() => setPicker(false)} onPick={(e) => up((d) => { d.features.push(srdToFeature(e)); })} />}
+    </div>
+  );
+}
+
+function FeatureList({ c, up, category, title, hint, onSrd }: { c: Character; up: Up; category: FeatureT['category']; title: string; hint: string; onSrd?: () => void }) {
+  const items = c.features.filter((f) => f.category === category);
+  const feat = category === 'feat';
+  return (
+    <div className="card stack">
+      <div className="card-title">
+        <h2>{feat ? <Award size={18} /> : <Compass size={18} />} {title}</h2>
+        {onSrd && <button className="btn sm" onClick={onSrd}><BookOpen size={16} /> Don du SRD</button>}
+      </div>
+      <p className="small muted" style={{ margin: 0 }}>{hint}</p>
+      <ListEditor<FeatureT>
+        items={items}
+        onChange={(v) => up((d) => { d.features = [...d.features.filter((f) => f.category !== category), ...v]; })}
+        make={() => ({ name: '', source: '', description: '', kind: feat ? 'passive' as const : 'other' as const, category, featType: '' })}
+        addLabel={feat ? 'Ajouter un don' : 'Ajouter une aptitude'}
+        render={(f, set) => (
+          <div className="stack">
+            <div className={`grid ${feat ? 'g4' : 'g3'}`}>
+              <Field label="Nom"><Text value={f.name} onChange={(v) => set({ name: v })} /></Field>
+              {feat && <Field label="Catégorie"><Text list="dl-feat-types" value={f.featType} onChange={(v) => set({ featType: v })} placeholder="Origine, Général…" /></Field>}
+              <Field label="Type d'action">
+                <Select value={f.kind} onChange={(v) => set({ kind: v })} options={FEATURE_KINDS.map((k) => ({ value: k, label: FEATURE_KIND_LABELS[k] }))} />
+              </Field>
+              <Field label={feat ? 'Source / prérequis' : 'Source'}><Text value={f.source} onChange={(v) => set({ source: v })} placeholder={feat ? 'Historique, niveau 4…' : 'Classe, espèce…'} /></Field>
+            </div>
+            <Field label={<>Description <MdHint /></>}><TextArea rows={3} value={f.description} onChange={(v) => set({ description: v })} /></Field>
+            <div className="row small">
+              <button className="btn ghost sm" onClick={() => set({ category: feat ? 'feature' : 'feat' })}>Déplacer vers {feat ? 'Aptitudes' : 'Dons'}</button>
+            </div>
+          </div>
+        )}
+      />
+      {feat && <DataList id="dl-feat-types" options={FEAT_TYPES} />}
     </div>
   );
 }

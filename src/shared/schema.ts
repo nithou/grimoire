@@ -73,6 +73,8 @@ export const Spell = z
     alwaysPrepared: bool,
     srdName: str,
     notes: str,
+    /** Sort à concentration. */
+    concentration: bool,
   })
   .prefault({});
 
@@ -90,8 +92,44 @@ export const Resource = z
   .prefault({});
 
 export const FEATURE_KINDS = ['action', 'bonus', 'reaction', 'passive', 'other'] as const;
+export const FEATURE_CATEGORIES = ['feature', 'feat'] as const;
 export const Feature = z
-  .object({ id, name: str, source: str, description: str, kind: z.enum(FEATURE_KINDS).catch('other').default('other') })
+  .object({
+    id,
+    name: str,
+    source: str,
+    description: str,
+    kind: z.enum(FEATURE_KINDS).catch('other').default('other'),
+    /** Aptitude (classe, espèce…) ou don. */
+    category: z.enum(FEATURE_CATEGORIES).catch('feature').default('feature'),
+    /** Pour un don : Origine, Général, Style de combat, Faveur épique. */
+    featType: str,
+  })
+  .prefault({});
+
+/**
+ * Effet activable (Rage, Témérité, Bénédiction…) : appliqué aux valeurs calculées tant qu'il est actif.
+ * Les effets actifs prennent fin aux repos.
+ */
+export const Effect = z
+  .object({
+    id,
+    name: str,
+    notes: str,
+    active: bool,
+    /** Ressource dont une utilisation est dépensée à l'activation ('' = aucune). */
+    resourceId: str,
+    acBonus: int(0),
+    toHitBonus: int(0),
+    damageBonus: int(0),
+    saveBonus: int(0),
+    /** Bonus aux dégâts et avantage aux attaques limités aux attaques utilisant la Force. */
+    strOnly: bool,
+    advChecks: z.array(AbilityEnum).catch([]).default([]),
+    advSaves: z.array(AbilityEnum).catch([]).default([]),
+    advAttacks: bool,
+    resistances: strList,
+  })
   .prefault({});
 
 export const Item = z
@@ -154,8 +192,17 @@ export const CharacterSchema = z.object({
       exhaustion: int(0),
       // Compteur de points d'Inspiration (règle maison : cumulable). Les anciens booléens sont convertis.
       heroicInspiration: z.preprocess((v) => (typeof v === 'boolean' ? (v ? 1 : 0) : v), int(0)),
+      /** Sort (ou effet) sur lequel le personnage se concentre ; '' = aucun. */
+      concentration: str,
     })
     .prefault({}),
+  /** Résistances, immunités et vulnérabilités permanentes (types de dégâts) et immunités aux états. */
+  defenses: z
+    .object({ resistances: strList, immunities: strList, vulnerabilities: strList, conditionImmunities: strList })
+    .prefault({}),
+  /** Sens spéciaux, ex. « Vision dans le noir 18 m ». */
+  senses: strList,
+  effects: z.array(Effect).catch([]).default([]),
   attacks: z.array(Attack).catch([]).default([]),
   spellcasting: z
     .object({
@@ -188,6 +235,7 @@ export type SpellT = z.infer<typeof Spell>;
 export type ResourceT = z.infer<typeof Resource>;
 export type ItemT = z.infer<typeof Item>;
 export type FeatureT = z.infer<typeof Feature>;
+export type EffectT = z.infer<typeof Effect>;
 
 export function blankCharacter(name?: string): Character {
   const c = CharacterSchema.parse({});

@@ -8,3 +8,11 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
+// Mode hors ligne (production uniquement : en développement, Vite sert les fichiers à la volée).
+declare const __BUILD_ID__: string;
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register(`/sw.js?v=${__BUILD_ID__}`).catch(() => undefined);
+  });
+}

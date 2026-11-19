@@ -22,6 +22,7 @@ export function SaveState({ status, onForce, onReload }: { status: SaveStatus; o
     dirty: [<Pencil size={14} />, 'Modifié'],
     saving: [<Loader size={14} />, 'Enregistrement…'],
     error: [<CloudOff size={14} />, 'Erreur d’enregistrement — nouvel essai'],
+    offline: [<CloudOff size={14} />, 'Hors ligne — enregistré sur cet appareil, envoi au retour du réseau'],
     conflict: [<TriangleAlert size={14} />, ''],
   };
   const [icon, label] = map[status];

@@ -48,6 +48,17 @@ export default async function characterRoutes(app: FastifyInstance) {
     return [...own.map((r) => summary(r, 'owner')), ...shared.map((r) => summary(r, 'dm'))];
   });
 
+  // Vue table du MJ : fiches complètes (partagées avec moi, et les miennes si ?own=1).
+  app.get<{ Querystring: { own?: string } }>('/api/characters/party', async (req) => {
+    const { own, shared } = visibleRows(req.user!.id);
+    const rows = [...shared.map((r) => [r, 'dm'] as const), ...(req.query.own === '1' ? own.map((r) => [r, 'owner'] as const) : [])];
+    return rows.map(([r, role]) => ({
+      id: r.id, version: r.version, updated_at: r.updated_at, role,
+      owner: (r as CharRow & { owner_name?: string }).owner_name ?? req.user!.username,
+      data: CharacterSchema.parse(JSON.parse(r.data)),
+    }));
+  });
+
   app.get('/api/characters/trash', async (req) => {
     const rows = db.prepare('SELECT * FROM characters WHERE user_id=? AND deleted_at IS NOT NULL ORDER BY deleted_at DESC').all(req.user!.id) as CharRow[];
     return rows.map((r) => summary(r));

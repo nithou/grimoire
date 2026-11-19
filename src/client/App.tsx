@@ -10,6 +10,7 @@ import SheetPlay from './pages/SheetPlay';
 import ImportPage from './pages/Import';
 import SrdPage from './pages/Srd';
 import AccountPage from './pages/Account';
+import PartyPage from './pages/Party';
 
 type AuthCtx = { user: User | null; setUser: (u: User | null) => void };
 const Auth = createContext<AuthCtx>({ user: null, setUser: () => undefined });
@@ -29,11 +30,34 @@ function useTheme() {
   return { dark, toggle: () => setTheme(dark ? 'light' : 'dark') };
 }
 
+/** Efface les fiches mises en cache pour le mode hors ligne (déconnexion). */
+export function clearOfflineData() {
+  navigator.serviceWorker?.controller?.postMessage('clear-data');
+}
+
+function useOnline() {
+  const [online, setOnline] = useState(() => navigator.onLine);
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off); };
+  }, []);
+  return online;
+}
+
 function Layout({ children }: { children: ReactNode }) {
   const { user, setUser } = useAuth();
   const { dark, toggle } = useTheme();
+  const online = useOnline();
   return (
     <>
+      {!online && (
+        <div className="offline-banner no-print" role="status">
+          Hors ligne : les fiches déjà ouvertes sur cet appareil restent consultables, les modifications seront envoyées au retour du réseau.
+        </div>
+      )}
       <header className="app-header no-print">
         <div className="inner">
           <Link to="/" className="brand">
@@ -48,7 +72,7 @@ function Layout({ children }: { children: ReactNode }) {
               <button onClick={toggle} aria-label={dark ? 'Thème clair' : 'Thème sombre'} title={dark ? 'Thème clair (parchemin)' : 'Thème sombre'}>
                 {dark ? <Sun size={18} /> : <Moon size={18} />}
               </button>
-              <button onClick={async () => { await api.logout(); setUser(null); }} aria-label="Se déconnecter" title="Se déconnecter">
+              <button onClick={async () => { await api.logout(); clearOfflineData(); setUser(null); }} aria-label="Se déconnecter" title="Se déconnecter">
                 <LogOut size={18} />
               </button>
             </nav>
@@ -71,7 +95,7 @@ export default function App() {
 
   useEffect(() => {
     api.me().then((r) => setUser(r.user)).catch(() => setUser(null)).finally(() => setReady(true));
-    const h = () => setUser(null);
+    const h = () => { clearOfflineData(); setUser(null); };
     window.addEventListener('grimoire:unauthorized', h);
     return () => window.removeEventListener('grimoire:unauthorized', h);
   }, []);
@@ -90,6 +114,7 @@ export default function App() {
               <Route path="/import" element={<ImportPage />} />
               <Route path="/srd" element={<SrdPage />} />
               <Route path="/compte" element={<AccountPage />} />
+              <Route path="/table" element={<PartyPage />} />
               <Route path="/c/:id" element={<SheetPlay />} />
               <Route path="/c/:id/edit" element={<SheetEdit />} />
               <Route path="*" element={<Navigate to="/" replace />} />

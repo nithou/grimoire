@@ -499,3 +499,29 @@ ul.log-changes li { margin: 0.1rem 0; }
 .md-note:hover { border-color: var(--border-strong); }
 .md-hint { font-family: var(--mono); font-size: 0.72rem; color: var(--text-muted); opacity: 0.8; text-transform: none; letter-spacing: 0; }
 .inv-desc, .attack-notes { white-space: normal; }
+
+/* ---------- Effets actifs, concentration, valeurs passives ---------- */
+.plate.adv, .save-chip.adv, .btn.adv { box-shadow: inset 0 0 0 1px var(--gold); }
+.save-chip.adv { color: var(--gold); }
+.adv-mark { color: var(--gold); font-size: 0.75em; }
+.stat.boosted .v { color: var(--gold); }
+.chip.effect { cursor: pointer; }
+.chip.effect.on { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--text-strong); }
+.card.effects-on { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); }
+.effect-detail { border-left: 2px solid var(--gold); padding-left: 0.5rem; }
+.conc-row { display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); }
+.conc-row.on { color: var(--text-strong); }
+.conc-row.on > svg { color: var(--info); }
+.btn.on { color: var(--info); }
+.fx { color: var(--gold); }
+.passives { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.passive { display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.pp-box.sm { transform: scale(0.85); opacity: 0.9; }
+.offline-banner { background: var(--surface-2); border-bottom: 1px solid var(--border); color: var(--text-muted); text-align: center; padding: 0.35rem 1rem; font-size: 0.85rem; }
+
+/* ---------- Vue table du MJ ---------- */
+.party-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 1rem; }
+.party-card .vals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.4rem; text-align: center; }
+.party-card .vals > div { background: var(--surface-sunk); border: 1px solid var(--border); border-radius: var(--r); padding: 0.3rem 0.2rem; }
+.party-card .vals .v { font-weight: 700; font-size: 1.15rem; color: var(--text-strong); font-variant-numeric: tabular-nums; }
+.party-card .vals .k { font-size: 0.68rem; color: var(--text-muted); letter-spacing: 0.04em; }

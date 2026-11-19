@@ -10,7 +10,9 @@ const LABELS: Record<string, string> = {
   'identity.appearance': 'Apparence', 'identity.portrait': 'Portrait',
   'combat.ac': 'CA', 'combat.acNote': 'Détail de la CA', 'combat.initiativeBonus': "Bonus d'initiative", 'combat.speed': 'Vitesse',
   'combat.hpMax': 'PV max', 'combat.hpCurrent': 'PV', 'combat.hpTemp': 'PV temporaires', 'combat.conditions': 'États',
-  'combat.exhaustion': 'Épuisement', 'combat.heroicInspiration': 'Inspiration',
+  'combat.exhaustion': 'Épuisement', 'combat.heroicInspiration': 'Inspiration', 'combat.concentration': 'Concentration',
+  'defenses.resistances': 'Résistances', 'defenses.immunities': 'Immunités', 'defenses.vulnerabilities': 'Vulnérabilités',
+  'defenses.conditionImmunities': 'Immunités aux états', senses: 'Sens',
   'combat.deathSaves.success': 'JdS contre la mort (réussites)', 'combat.deathSaves.failure': 'JdS contre la mort (échecs)',
   'savingThrows': 'Sauvegardes maîtrisées', 'saveBonus': 'Bonus aux JS',
   'overrides.proficiencyBonus': 'Bonus de maîtrise (forcé)', 'overrides.passivePerception': 'Perception passive (forcée)', 'overrides.initiative': 'Initiative (forcée)',
@@ -24,14 +26,15 @@ for (const c of COINS) LABELS[`coins.${c.key}`] = c.label;
 
 /** Collections d'objets identifiés : libellé de la collection, nom d'un élément et champs suivis. */
 const COLLECTIONS: Record<string, { label: string; name: (x: any) => string; fields: Record<string, string> }> = {
+  effects: { label: 'Effets', name: (x) => x.name || 'effet', fields: { active: 'actif', name: 'nom', notes: 'rappel', damageBonus: 'bonus aux dégâts', acBonus: 'bonus à la CA', toHitBonus: 'bonus au toucher', saveBonus: 'bonus aux JS', resistances: 'résistances' } },
   inventory: { label: 'Inventaire', name: (x) => x.name || 'objet', fields: { qty: 'quantité', name: 'nom', equipped: 'équipé', attuned: 'harmonisé', value: 'valeur', notes: 'description', weight: 'poids', containerId: 'contenant' } },
   attacks: { label: 'Attaques', name: (x) => x.name || 'attaque', fields: { name: 'nom', count: 'nombre', equipped: 'équipée', damage: 'dégâts', toHitBonus: 'bonus au toucher', ability: 'caractéristique', notes: 'notes' } },
   resources: { label: 'Ressources', name: (x) => x.name || 'ressource', fields: { used: 'dépensées', max: 'maximum', name: 'nom', description: 'description' } },
-  features: { label: 'Aptitudes', name: (x) => x.name || 'aptitude', fields: { name: 'nom', kind: 'type', description: 'description', source: 'source' } },
+  features: { label: 'Aptitudes et dons', name: (x) => x.name || 'aptitude', fields: { name: 'nom', kind: 'type', description: 'description', source: 'source', category: 'catégorie', featType: 'type de don' } },
   classes: { label: 'Classes', name: (x) => x.name || 'classe', fields: { level: 'niveau', subclass: 'sous-classe', name: 'nom' } },
   allies: { label: 'Alliés', name: (x) => x.name || 'allié', fields: { name: 'nom', notes: 'notes' } },
   containers: { label: 'Contenants', name: (x) => x.name || 'contenant', fields: { name: 'nom' } },
-  'spellcasting.spells': { label: 'Sorts', name: (x) => x.name || 'sort', fields: { prepared: 'préparé', name: 'nom', level: 'niveau' } },
+  'spellcasting.spells': { label: 'Sorts', name: (x) => x.name || 'sort', fields: { prepared: 'préparé', name: 'nom', level: 'niveau', concentration: 'concentration' } },
 };
 
 const fmt = (v: unknown): string => {

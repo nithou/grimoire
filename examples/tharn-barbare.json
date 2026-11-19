@@ -33,13 +33,28 @@
       "sag": 14,
       "cha": 8
     },
-    "savingThrows": ["for", "con"],
+    "savingThrows": [
+      "for",
+      "con"
+    ],
     "saveBonus": 0,
     "skills": {
-      "athletisme": { "prof": 1, "bonus": 0 },
-      "intimidation": { "prof": 1, "bonus": 0 },
-      "perception": { "prof": 1, "bonus": 0 },
-      "survie": { "prof": 1, "bonus": 0 }
+      "athletisme": {
+        "prof": 1,
+        "bonus": 0
+      },
+      "intimidation": {
+        "prof": 1,
+        "bonus": 0
+      },
+      "perception": {
+        "prof": 1,
+        "bonus": 0
+      },
+      "survie": {
+        "prof": 1,
+        "bonus": 0
+      }
     },
     "overrides": {
       "proficiencyBonus": null,
@@ -54,12 +69,73 @@
       "hpMax": 41,
       "hpCurrent": 34,
       "hpTemp": 0,
-      "hitDice": [{ "die": "d12", "total": 4, "used": 1 }],
-      "deathSaves": { "success": 0, "failure": 0 },
+      "hitDice": [
+        {
+          "die": "d12",
+          "total": 4,
+          "used": 1
+        }
+      ],
+      "deathSaves": {
+        "success": 0,
+        "failure": 0
+      },
       "conditions": [],
       "exhaustion": 0,
-      "heroicInspiration": 1
+      "heroicInspiration": 1,
+      "concentration": ""
     },
+    "defenses": {
+      "resistances": [
+        "Froid"
+      ],
+      "immunities": [],
+      "vulnerabilities": [],
+      "conditionImmunities": []
+    },
+    "senses": [],
+    "effects": [
+      {
+        "id": "ex-fx-rage",
+        "name": "Rage",
+        "notes": "Sans armure lourde. Prend fin si tu es neutralisé, ou si ton tour se termine sans avoir attaqué, forcé un JdS ni prolongé la rage par une action bonus. Pas de sorts ni de concentration.",
+        "active": false,
+        "resourceId": "ex-res-rage",
+        "acBonus": 0,
+        "toHitBonus": 0,
+        "damageBonus": 2,
+        "saveBonus": 0,
+        "strOnly": true,
+        "advChecks": [
+          "for"
+        ],
+        "advSaves": [
+          "for"
+        ],
+        "advAttacks": false,
+        "resistances": [
+          "Contondant",
+          "Perforant",
+          "Tranchant"
+        ]
+      },
+      {
+        "id": "ex-fx-temerite",
+        "name": "Témérité",
+        "notes": "Les attaques contre toi ont l'avantage jusqu'au début de ton prochain tour.",
+        "active": false,
+        "resourceId": "",
+        "acBonus": 0,
+        "toHitBonus": 0,
+        "damageBonus": 0,
+        "saveBonus": 0,
+        "strOnly": true,
+        "advChecks": [],
+        "advSaves": [],
+        "advAttacks": true,
+        "resistances": []
+      }
+    ],
     "attacks": [
       {
         "id": "ex-atk-hache",
@@ -139,42 +215,73 @@
         "name": "Rage",
         "source": "Barbare",
         "description": "Sans armure lourde : avantage aux tests et JdS de Force, +2 dégâts au corps à corps (arme, Force), résistance contondant, perforant, tranchant.\nPrend fin si tu tombes inconscient ou si ton tour se termine sans avoir attaqué ni subi de dégâts.",
-        "kind": "bonus"
+        "kind": "bonus",
+        "category": "feature",
+        "featType": ""
       },
       {
         "id": "ex-feat-def",
         "name": "Défense sans armure",
         "source": "Barbare",
         "description": "Tant que tu ne portes pas d'armure, ta CA est égale à 10 + mod. de Dextérité + mod. de Constitution. Tu peux porter un bouclier et garder cet avantage.",
-        "kind": "passive"
+        "kind": "passive",
+        "category": "feature",
+        "featType": ""
       },
       {
         "id": "ex-feat-temerite",
         "name": "Témérité",
         "source": "Barbare",
         "description": "Lors de ta première attaque du tour, tu peux attaquer avec témérité : **avantage** à tes attaques au corps à corps utilisant la Force pendant ce tour. En contrepartie, les attaques contre toi ont l'avantage jusqu'à ton prochain tour.",
-        "kind": "action"
+        "kind": "action",
+        "category": "feature",
+        "featType": ""
       },
       {
         "id": "ex-feat-sens",
         "name": "Sens du danger",
         "source": "Barbare",
         "description": "Avantage aux jets de sauvegarde de Dextérité, sauf si tu es neutralisé.",
-        "kind": "passive"
+        "kind": "passive",
+        "category": "feature",
+        "featType": ""
       },
       {
         "id": "ex-feat-frenesie",
         "name": "Frénésie",
         "source": "Voie du Berserker",
         "description": "Si tu attaques avec témérité pendant ta rage, ta première attaque qui touche inflige des dégâts supplémentaires : un nombre de d6 égal à ton bonus de dégâts de rage.",
-        "kind": "action"
+        "kind": "action",
+        "category": "feature",
+        "featType": ""
+      },
+      {
+        "id": "ex-feat-sauvagerie",
+        "name": "Sauvagerie martiale",
+        "source": "Historique",
+        "description": "Une fois par tour, quand tu touches une cible avec une arme, tu peux lancer deux fois les dés de dégâts de l'arme et garder le meilleur résultat.",
+        "kind": "passive",
+        "category": "feat",
+        "featType": "Origine"
       }
     ],
     "proficiencies": {
-      "armor": ["Légères", "Intermédiaires", "Boucliers"],
-      "weapons": ["Armes courantes", "Armes de guerre"],
-      "tools": ["Flûte"],
-      "languages": ["Commun", "Nain"]
+      "armor": [
+        "Légères",
+        "Intermédiaires",
+        "Boucliers"
+      ],
+      "weapons": [
+        "Armes courantes",
+        "Armes de guerre"
+      ],
+      "tools": [
+        "Flûte"
+      ],
+      "languages": [
+        "Commun",
+        "Nain"
+      ]
     },
     "inventory": [
       {
@@ -309,7 +416,7 @@
         "notes": "Clerc, soigne volontiers mais sermonne davantage"
       }
     ],
-    "notes": "## Fiche d'exemple\n\nCe personnage sert à tester Grimoire : importez-le depuis **Importer**, puis essayez la vue Jeu (jets, rage, repos, inventaire).",
+    "notes": "## Fiche d'exemple\n\nCe personnage sert à tester Grimoire : importez-le depuis **Importer**, puis essayez la vue Jeu (jets, **Rage** dans les effets actifs, dégâts typés, repos, inventaire, bouton Annuler).",
     "toVerify": [],
     "images": []
   }

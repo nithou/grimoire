@@ -66,8 +66,14 @@ function summarize(id: string, c: Character) {
     caracteristiques: Object.fromEntries(ABILITIES.map((a) => [ABILITY_LABELS[a].long, { valeur: c.abilities[a], mod: R.mod(c, a), sauvegarde: R.saveBonus(c, a), sauvegarde_maitrisee: c.savingThrows.includes(a) }])),
     competences: Object.fromEntries(SKILLS.map((s) => [s.label, { bonus: R.skillBonus(c, s.key), maitrise: ['non', 'maîtrise', 'expertise'][c.skills[s.key]?.prof ?? 0] }])),
     perception_passive: R.passivePerception(c),
+    perspicacite_passive: R.passiveSkill(c, 'perspicacite'),
+    investigation_passive: R.passiveSkill(c, 'investigation'),
+    sens: c.senses,
+    defenses: { ...R.damageDefenses(c), immunites_etats: c.defenses.conditionImmunities },
+    effets: c.effects.map((e) => ({ id: e.id, nom: e.name, actif: e.active, rappel: e.notes })),
+    concentration: c.combat.concentration || null,
     combat: {
-      ca: c.combat.ac, initiative: R.initiative(c), vitesse_m: R.speed(c),
+      ca: R.armorClass(c), ca_base: c.combat.ac, initiative: R.initiative(c), vitesse_m: R.speed(c),
       pv: c.combat.hpCurrent, pv_max: c.combat.hpMax, pv_temp: c.combat.hpTemp,
       des_de_vie: c.combat.hitDice, jets_contre_la_mort: c.combat.deathSaves, mort: R.isDead(c),
       etats: c.combat.conditions, epuisement: c.combat.exhaustion, inspiration: c.combat.heroicInspiration,
@@ -77,7 +83,8 @@ function summarize(id: string, c: Character) {
     ressources: c.resources.map((r) => ({ id: r.id, nom: r.name, restant: r.max - r.used, max: r.max, recharge: r.recharge, description: r.description })),
     monnaie: c.coins,
     inventaire: boxes.map((b) => ({ contenant: b.name, contenant_id: b.id, objets: c.inventory.filter((i) => i.containerId === b.id).map((i) => ({ id: i.id, nom: i.name, qte: i.qty, valeur: i.value, description: i.notes, equipe: i.equipped })) })),
-    aptitudes: c.features.map((f) => ({ nom: f.name, source: f.source })),
+    aptitudes: c.features.filter((f) => f.category !== 'feat').map((f) => ({ nom: f.name, source: f.source })),
+    dons: c.features.filter((f) => f.category === 'feat').map((f) => ({ nom: f.name, type: f.featType, source: f.source })),
     a_verifier: c.toVerify,
   };
 }
@@ -183,7 +190,8 @@ const TOOLS: Tool[] = [
     },
     run: (user, a) => {
       const { row, c } = load(user, a.character_id);
-      const mode: D20Mode = ['advantage', 'disadvantage'].includes(a.mode) ? a.mode : 'normal';
+      let mode: D20Mode = ['advantage', 'disadvantage'].includes(a.mode) ? a.mode : 'normal';
+      let adv: string[] = [];
       const pen = R.exhaustionPenalty(c);
       let label: string;
       let bonus: number;
@@ -194,6 +202,7 @@ const TOOLS: Tool[] = [
           const ab = findAbility(String(a.key ?? ''));
           if (!ab) throw new ToolError('key : caractéristique inconnue (FOR, DEX, CON, INT, SAG, CHA)');
           bonus = a.kind === 'ability' ? R.mod(c, ab) : R.saveBonus(c, ab);
+          adv = R.effectAdvantage(c, a.kind === 'ability' ? 'check' : 'save', ab);
           label = `${a.kind === 'ability' ? 'Test' : 'Sauvegarde'} de ${ABILITY_LABELS[ab].long}`;
           break;
         }
@@ -201,11 +210,13 @@ const TOOLS: Tool[] = [
           const sk = findSkill(String(a.key ?? ''));
           if (!sk) throw new ToolError('key : compétence inconnue');
           bonus = R.skillBonus(c, sk.key);
+          adv = R.effectAdvantage(c, 'check', sk.ability);
           label = sk.label;
           break;
         }
         case 'initiative':
           bonus = R.initiative(c);
+          adv = R.effectAdvantage(c, 'check', 'dex');
           label = 'Initiative';
           break;
         case 'attack': {
@@ -213,6 +224,7 @@ const TOOLS: Tool[] = [
           attack = c.attacks.find((x) => x.id === a.key || norm(x.name) === k) ?? c.attacks.find((x) => norm(x.name).includes(k));
           if (!attack) throw new ToolError(`Attaque inconnue. Disponibles : ${c.attacks.map((x) => x.name).join(', ')}`);
           bonus = R.attackToHit(c, attack);
+          adv = R.effectAdvantage(c, 'attack', attack);
           label = `Attaque : ${attack.name}`;
           break;
         }
@@ -226,10 +238,13 @@ const TOOLS: Tool[] = [
         default:
           throw new ToolError('kind invalide');
       }
+      // Avantage des effets actifs (Rage, Témérité…) ; avantage + désavantage = normal.
+      if (adv.length) mode = mode === 'disadvantage' ? 'normal' : 'advantage';
       const r = rollD20(bonus + pen, mode);
       const detail = `d20[${r.rolls.join(',')}]${mode !== 'normal' ? ` (${mode === 'advantage' ? 'avantage' : 'désavantage'})` : ''} ${R.fmtMod(bonus)}${pen ? ` ${pen} épuisement` : ''}`;
       logRoll(row.id, label, detail, r.total);
       const out: Record<string, unknown> = { jet: label, total: r.total, naturel: r.nat, des: r.rolls, bonus, critique: r.isCrit, echec_critique: r.isFumble };
+      if (adv.length) out.avantage_effets = adv;
       if (attack) {
         const expr = R.damageExpression(c, attack);
         const d = roll(expr, { crit: r.isCrit });
@@ -242,14 +257,27 @@ const TOOLS: Tool[] = [
   {
     name: 'adjust_hp',
     title: 'Modifier les PV',
-    description: 'Applique des dégâts (les PV temporaires absorbent d’abord), des soins, ou des PV temporaires (non cumulables : le plus élevé est gardé).',
-    inputSchema: { type: 'object', properties: { character_id: charId, type: { type: 'string', enum: ['damage', 'heal', 'temp'] }, amount: { type: 'integer', minimum: 0 } }, required: ['character_id', 'type', 'amount'] },
+    description:
+      'Applique des dégâts (les PV temporaires absorbent d’abord ; damage_type applique résistances, immunités et vulnérabilités de la fiche et des effets actifs), des soins, ou des PV temporaires (non cumulables : le plus élevé est gardé). ' +
+      'Si le personnage se concentre, le DD du JdS de Constitution est indiqué.',
+    inputSchema: { type: 'object', properties: { character_id: charId, type: { type: 'string', enum: ['damage', 'heal', 'temp'] }, amount: { type: 'integer', minimum: 0 }, damage_type: { type: 'string', description: 'ex. Feu, Tranchant (optionnel)' } }, required: ['character_id', 'type', 'amount'] },
     run: (user, a) => {
       const { row, c } = load(user, a.character_id);
       const n = Math.max(0, Math.floor(Number(a.amount) || 0));
-      const next = a.type === 'damage' ? R.applyDamage(c, n) : a.type === 'heal' ? R.applyHealing(c, n) : R.setTempHp(c, n);
+      const adj = a.type === 'damage' ? R.adjustDamage(c, n, String(a.damage_type ?? '')) : { amount: n, note: '' };
+      const next = a.type === 'damage' ? R.applyDamage(c, adj.amount) : a.type === 'heal' ? R.applyHealing(c, n) : R.setTempHp(c, n);
       const s = save(row, next);
-      return { pv: s.combat.hpCurrent, pv_max: s.combat.hpMax, pv_temp: s.combat.hpTemp, a_terre: s.combat.hpCurrent === 0 };
+      const out: Record<string, unknown> = { pv: s.combat.hpCurrent, pv_max: s.combat.hpMax, pv_temp: s.combat.hpTemp, a_terre: s.combat.hpCurrent === 0 };
+      if (a.type === 'damage') {
+        out.degats_subis = adj.amount;
+        if (adj.note) out.ajustement = adj.note;
+        if (c.combat.concentration && adj.amount > 0) {
+          out.concentration = s.combat.concentration
+            ? { sort: c.combat.concentration, jds_constitution_dd: R.concentrationDC(adj.amount) }
+            : { sort: c.combat.concentration, rompue: 'À 0 PV, la concentration prend fin.' };
+        }
+      }
+      return out;
     },
   },
   {

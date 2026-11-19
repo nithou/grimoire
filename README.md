@@ -16,14 +16,19 @@ Le fichier [`examples/tharn-barbare.json`](examples/tharn-barbare.json) contient
 - **Fiche complète** :
   - identité, multiclasse, caractéristiques et sauvegardes, 18 compétences (maîtrise ou expertise) ;
   - CA, initiative, vitesse, PV et PV temporaires, dés de vie, états, épuisement 2024, Inspiration héroïque ;
-  - attaques avec bottes d'arme, sorts et emplacements, ressources de classe ;
-  - aptitudes et dons, maîtrises, inventaire et monnaie, personnalité, alliés, notes, liste « à vérifier ».
+  - résistances, immunités et vulnérabilités, sens spéciaux, Perception, Perspicacité et Investigation passives ;
+  - attaques avec bottes d'arme, sorts (dont concentration) et emplacements, ressources de classe ;
+  - aptitudes, dons (origine, généraux…), historiques 2024 (don d'origine, compétences et outil en un clic) ;
+  - maîtrises, inventaire, objets harmonisés (3 au maximum) et monnaie, personnalité, alliés, notes, liste « à vérifier ».
   - Les valeurs dérivées sont calculées automatiquement et peuvent être forcées.
 - **Vue Édition** : accès à tous les champs, avec enregistrement automatique.
 - **Vue Jeu** :
   - clic pour lancer les tests, sauvegardes, compétences, l'initiative, les attaques puis les dégâts ;
   - avantage ou désavantage, critiques (dés doublés), pénalité d'épuisement, jets contre la mort ;
-  - dégâts, soins et PV temporaires, dés de vie, emplacements, ressources, repos court et repos long ;
+  - dégâts typés (résistance = moitié, vulnérabilité = double, immunité), soins et PV temporaires, dés de vie, emplacements, ressources, repos court et repos long ;
+  - **effets activables** (Rage, Témérité…) : un clic dépense la ressource liée et applique bonus de dégâts, CA, avantage et résistances jusqu'au repos ;
+  - **concentration** : sort en cours, JdS de Constitution proposé avec son DD après des dégâts ;
+  - bouton **Annuler** (et Ctrl+Z) pour revenir sur un clic de trop ;
   - inventaire, monnaie et notes modifiables ;
   - plateau de dés libre et journal des lancers.
 - **Import et export JSON** : format natif versionné, plus import du format libre en français avec avertissements sur les incohérences.
@@ -33,11 +38,13 @@ Le fichier [`examples/tharn-barbare.json`](examples/tharn-barbare.json) contient
   - Suggestions de valeurs de fiche à valider, et lecture de **cartes** (objet, aptitude) : titre, description et usage (« 1 / repos long ») ajoutables en objet, aptitude ou ressource.
 - **Référence SRD 5.2.1 en français** (et en anglais, au choix) : sorts, armes, armures, équipement, objets magiques, dons, glossaire. Recherche et ajout direct à une fiche.
 - **Dés 3D** (three.js et cannon.js) façon Baldur's Gate 3 : les dés roulent à l'écran avant l'affichage du résultat. Désactivables, avec ou sans son.
+- **Hors ligne** : l'application et les fiches déjà ouvertes restent consultables sans réseau. Les modifications sont gardées sur l'appareil et envoyées au retour de la connexion (en cas de modification entre-temps sur le serveur, la fiche propose de recharger ou d'écraser).
 - Interface inspirée de Foundry VTT : thème sombre par défaut (Signika et Amiri, accent orange) et thème clair « parchemin ». Mise en page mobile, impression, installable sur l'écran d'accueil iPhone.
 
 ## Maître du Donjon et journal
 
 - **Maître du Donjon** : dans Édition › Partage (MJ), le propriétaire d'une fiche désigne un ou plusieurs comptes MJ par leur identifiant. Le MJ voit la fiche dans « Partagés avec moi », peut tout modifier (y compris via son accès MCP), mais ne peut ni la supprimer ni gérer les partages. Il peut se retirer lui-même.
+- **Table du MJ** (`/table`, depuis « Partagés avec moi ») : toutes les fiches partagées sur une page, actualisée toutes les 15 secondes : PV, CA, initiative, valeurs passives, DD des sorts, états, effets actifs, concentration, résistances.
 - **Journal (onglet Log)** : chaque modification est inscrite avec son auteur, son rôle (propriétaire ou MJ), son origine (web ou IA/MCP) et le détail avant → après. Les enregistrements automatiques successifs d'une même personne sont regroupés sur 2 minutes.
 
 ## Accès IA (MCP)
@@ -58,7 +65,7 @@ Le jeton ne donne accès qu'aux fiches de son propriétaire. Outils disponibles 
 | `list_characters`, `get_character` | Lister les fiches, lire une fiche avec toutes les valeurs calculées (option `raw` pour le JSON complet) |
 | `create_character`, `update_character` | Créer une fiche, appliquer un patch JSON partiel (validé par le schéma) |
 | `roll_dice`, `roll_check` | Lancer une expression, ou un jet de la fiche (caractéristique, sauvegarde, compétence, initiative, attaque + dégâts, contre la mort) ; enregistré dans le journal |
-| `adjust_hp` | Dégâts, soins, PV temporaires |
+| `adjust_hp` | Dégâts (typés : résistances appliquées, DD de concentration indiqué), soins, PV temporaires |
 | `manage_inventory` | Ajouter/retirer des objets (avec contenant), gérer la monnaie |
 | `use_resource` | Ressources de classe, emplacements de sorts, Inspiration |
 | `rest` | Repos court / long |

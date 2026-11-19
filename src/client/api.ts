@@ -55,6 +55,7 @@ export const api = {
   trash: () => req<CharacterSummary[]>('GET', '/api/characters/trash'),
   create: (character?: Character, name?: string) => req<{ id: string }>('POST', '/api/characters', { character, name }),
   get: (id: string) => req<CharacterDoc>('GET', `/api/characters/${id}`),
+  party: (own: boolean) => req<CharacterDoc[]>('GET', `/api/characters/party${own ? '?own=1' : ''}`),
   save: (id: string, version: number, data: Character) => req<{ version: number; updated_at: number }>('PUT', `/api/characters/${id}`, { version, data }),
   remove: (id: string) => req('DELETE', `/api/characters/${id}`),
   restore: (id: string) => req('POST', `/api/characters/${id}/restore`),

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, FileUp, Trash2, RotateCcw, Copy, Download, Pencil, UserRound, Archive, Crown } from 'lucide-react';
+import { Plus, FileUp, Trash2, RotateCcw, Copy, Download, Pencil, UserRound, Archive, Crown, LayoutDashboard } from 'lucide-react';
 import { api, type CharacterSummary } from '../api';
 import { Skeleton } from '../ui';
 
@@ -57,7 +57,10 @@ export default function CharactersPage() {
 
       {shared.length > 0 && (
         <>
-          <h2 className="row" style={{ gap: 8, marginTop: '0.5rem' }}><Crown size={20} style={{ color: 'var(--gold)' }} /> Partagés avec moi (Maître du Donjon)</h2>
+          <div className="row spread" style={{ marginTop: '0.5rem' }}>
+            <h2 className="row" style={{ gap: 8, margin: 0 }}><Crown size={20} style={{ color: 'var(--gold)' }} /> Partagés avec moi (Maître du Donjon)</h2>
+            <Link className="btn sm" to="/table"><LayoutDashboard size={16} /> Table du MJ</Link>
+          </div>
           <div className="grid g3">
             {shared.map((c, i) => <CharCard key={c.id} c={c} i={i} load={load} />)}
           </div>

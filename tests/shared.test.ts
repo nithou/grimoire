@@ -354,3 +354,83 @@ describe('Markdown des notes', () => {
     expect(mdToHtml('- *a*\n- **b**')).toBe('<ul><li><em>a</em></li><li><strong>b</strong></li></ul>');
   });
 });
+
+describe('effets, défenses et concentration', () => {
+  const file = JSON.parse(readFileSync(resolve(__dirname, '../examples/tharn-barbare.json'), 'utf8'));
+  const base = () => importCharacterJson(file).character;
+  const hache = (c: ReturnType<typeof base>) => c.attacks.find((a) => a.name === 'Hache à deux mains')!;
+
+  it('la Rage dépense une utilisation et applique ses bonus', () => {
+    const c = base();
+    const usedBefore = c.resources[0].used;
+    const { char: r, warning } = R.toggleEffect(c, 'ex-fx-rage');
+    expect(warning).toBeUndefined();
+    expect(r.resources[0].used).toBe(usedBefore + 1);
+    expect(R.damageExpression(r, hache(r))).toBe('1d12+5');
+    expect(R.damageExpression(c, hache(c))).toBe('1d12+3');
+    expect(R.effectAdvantage(r, 'save', 'for')).toEqual(['Rage']);
+    expect(R.effectAdvantage(r, 'save', 'dex')).toEqual([]);
+    expect(R.damageDefenses(r).resistances).toEqual(['Froid', 'Contondant', 'Perforant', 'Tranchant']);
+    // Désactiver ne rend pas l'utilisation.
+    expect(R.toggleEffect(r, 'ex-fx-rage').char.resources[0].used).toBe(usedBefore + 1);
+  });
+
+  it('prévient quand la ressource est épuisée', () => {
+    const c = base();
+    c.resources[0].used = c.resources[0].max;
+    expect(R.toggleEffect(c, 'ex-fx-rage').warning).toMatch(/Rage/);
+  });
+
+  it('Témérité : avantage aux attaques de Force seulement', () => {
+    const c = R.toggleEffect(base(), 'ex-fx-temerite').char;
+    expect(R.effectAdvantage(c, 'attack', hache(c))).toEqual(['Témérité']);
+    const arc = { ...hache(c), ability: 'dex' as const };
+    expect(R.effectAdvantage(c, 'attack', arc)).toEqual([]);
+  });
+
+  it('résistance, immunité et vulnérabilité', () => {
+    const c = base();
+    expect(R.adjustDamage(c, 9, 'Froid').amount).toBe(4);
+    expect(R.adjustDamage(c, 9, 'Feu').amount).toBe(9);
+    expect(R.adjustDamage(c, 9, '').amount).toBe(9);
+    c.defenses.immunities = ['Poison'];
+    c.defenses.vulnerabilities = ['Feu'];
+    expect(R.adjustDamage(c, 9, 'poison')).toMatchObject({ amount: 0 });
+    expect(R.adjustDamage(c, 9, 'Feu').amount).toBe(18);
+  });
+
+  it('CA et JS avec effet actif', () => {
+    const c = base();
+    c.effects.push({ ...c.effects[0], id: 'b', name: 'Bouclier de la foi', active: true, resourceId: '', acBonus: 2, saveBonus: 1, damageBonus: 0, advChecks: [], advSaves: [], resistances: [] });
+    expect(R.armorClass(c)).toBe(c.combat.ac + 2);
+    expect(R.saveBonus(c, 'con')).toBe(R.mod(c, 'con') + R.proficiencyBonus(c) + 1);
+  });
+
+  it('concentration : DD, fin à 0 PV et au repos', () => {
+    expect(R.concentrationDC(7)).toBe(10);
+    expect(R.concentrationDC(25)).toBe(12);
+    expect(R.concentrationDC(100)).toBe(30);
+    const c = base();
+    c.combat.concentration = 'Flou';
+    expect(R.applyDamage(c, 5).combat.concentration).toBe('Flou');
+    expect(R.applyDamage(c, 999).combat.concentration).toBe('');
+    const raging = R.toggleEffect(c, 'ex-fx-rage').char;
+    const rested = R.shortRest(raging);
+    expect(rested.combat.concentration).toBe('');
+    expect(R.activeEffects(rested)).toEqual([]);
+  });
+
+  it('valeurs passives', () => {
+    const c = base();
+    expect(R.passiveSkill(c, 'perception')).toBe(10 + R.skillBonus(c, 'perception'));
+    expect(R.passiveSkill(c, 'investigation')).toBe(10 + R.mod(c, 'int'));
+  });
+
+  it('anciennes fiches : nouveaux champs par défaut', () => {
+    const c = CharacterSchema.parse({ identity: { name: 'X' }, features: [{ name: 'Rage' }] });
+    expect(c.effects).toEqual([]);
+    expect(c.defenses.resistances).toEqual([]);
+    expect(c.combat.concentration).toBe('');
+    expect(c.features[0].category).toBe('feature');
+  });
+});
