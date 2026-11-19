@@ -410,9 +410,18 @@ function DefensesCard({ c, up }: { c: Character; up: Up }) {
 /** Bonus de dégâts de Rage selon le niveau de Barbare (2024). */
 const rageDamage = (lvl: number) => (lvl >= 16 ? 4 : lvl >= 9 ? 3 : 2);
 
-const EFFECT_PRESETS: { name: string; make: (c: Character) => Omit<EffectT, 'id'> }[] = [
+/** Utilisations de Rage selon le niveau de Barbare (2024). */
+const rageUses = (lvl: number) => (lvl >= 17 ? 6 : lvl >= 12 ? 5 : lvl >= 6 ? 4 : lvl >= 3 ? 3 : 2);
+
+const EFFECT_PRESETS: { name: string; setup?: (d: Character) => void; make: (c: Character) => Omit<EffectT, 'id'> }[] = [
   {
     name: 'Rage',
+    // Sans ressource « Rage » sur la fiche, on la crée pour que l'activation la décompte.
+    setup: (d) => {
+      if (d.resources.some((r) => norm(r.name).startsWith('rage'))) return;
+      const lvl = d.classes.find((k) => norm(k.name) === 'barbare')?.level ?? 1;
+      d.resources.push({ id: uid(), name: 'Rage', max: rageUses(lvl), used: 0, recharge: 'long', description: 'Récupère 1 utilisation par repos court.' });
+    },
     make: (c) => ({
       name: 'Rage', active: false,
       resourceId: c.resources.find((r) => norm(r.name).startsWith('rage'))?.id ?? '',
@@ -462,7 +471,7 @@ function EffectsEditor({ c, up }: { c: Character; up: Up }) {
         make={blank}
         addLabel="Effet vierge"
         extraActions={EFFECT_PRESETS.filter((p) => !c.effects.some((e) => norm(e.name) === norm(p.name))).map((p) => (
-          <button key={p.name} className="btn sm" onClick={() => up((d) => { d.effects.push({ ...p.make(d), id: uid() }); })}><Plus size={14} /> {p.name}</button>
+          <button key={p.name} className="btn sm" onClick={() => up((d) => { p.setup?.(d); d.effects.push({ ...p.make(d), id: uid() }); })}><Plus size={14} /> {p.name}</button>
         ))}
         render={(e, set) => (
           <div className="stack">

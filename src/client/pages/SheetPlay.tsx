@@ -331,7 +331,13 @@ function EffectsCard({ c, up, concDc, setConcDc }: { c: Character; up: Up; concD
                   if (r.warning && !confirm(`${r.warning} Activer quand même ?`)) return;
                   up(() => r.char);
                 }}>
-                {e.name || 'Effet'}{res && <span className="muted"> · {res.max - res.used}/{res.max}</span>}
+                {e.name || 'Effet'}{res && (
+                  <span className="effect-uses" aria-label={`${res.max - res.used} sur ${res.max} restantes`}>
+                    {res.max <= 8
+                      ? Array.from({ length: res.max }, (_, i) => <span key={i} className={`pip ${i < res.max - res.used ? 'on' : ''}`} />)
+                      : `${res.max - res.used}/${res.max}`}
+                  </span>
+                )}
               </button>
             );
           })}

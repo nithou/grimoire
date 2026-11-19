@@ -506,6 +506,8 @@ ul.log-changes li { margin: 0.1rem 0; }
 .adv-mark { color: var(--gold); font-size: 0.75em; }
 .stat.boosted .v { color: var(--gold); }
 .chip.effect { cursor: pointer; }
+.chip.effect .effect-uses { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; font-size: 0.85em; }
+.chip.effect .effect-uses .pip { width: 0.55rem; height: 0.55rem; cursor: inherit; }
 .chip.effect.on { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--text-strong); }
 .card.effects-on { border-color: color-mix(in srgb, var(--gold) 55%, var(--border)); }
 .effect-detail { border-left: 2px solid var(--gold); padding-left: 0.5rem; }
